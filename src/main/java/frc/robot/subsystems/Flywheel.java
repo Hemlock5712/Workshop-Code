@@ -4,13 +4,17 @@
 
 package frc.robot.subsystems;
 
+import static edu.wpi.first.units.Units.DegreesPerSecond;
+import static edu.wpi.first.units.Units.RotationsPerSecond;
+
 import com.ctre.phoenix6.CANBus;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.Follower;
-import com.ctre.phoenix6.controls.VoltageOut;
+import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
+import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
@@ -23,8 +27,8 @@ public class Flywheel extends SubsystemBase {
 
   private final TalonFX follower = new TalonFX(22, canivore);
 
-  // Voltage output control for the flywheel
-  private final VoltageOut voltageOut = new VoltageOut(0);
+  // Velocity output control for the flywheel
+  private final VelocityVoltage velocityOut = new VelocityVoltage(0);
 
   public Flywheel() {
     // Set the follower to follow the leader motor
@@ -35,6 +39,9 @@ public class Flywheel extends SubsystemBase {
     config.MotorOutput.NeutralMode = NeutralModeValue.Coast;
     // Configure the motor to make sure positive voltage is counter clockwise
     config.MotorOutput.Inverted = InvertedValue.CounterClockwise_Positive;
+    config.Slot0.kS = 0.0; // Static gain
+    config.Slot0.kV = 0.0; // Velocity gain
+    config.Slot0.kP = 0.0; // Proportional gain
     // Try to apply config multiple time. Break after successfully applying
     for (int i = 0; i < 2; ++i) {
       var status = leader.getConfigurator().apply(config);
@@ -48,13 +55,13 @@ public class Flywheel extends SubsystemBase {
   }
 
   /**
-   * Sets the voltage for the flywheel.
+   * Sets the velocity for the flywheel.
    *
-   * @param voltage The voltage to set.
+   * @param velocity The velocity to set.
    */
-  public void setVoltage(double voltage) {
-    // Apply the voltage output to the leader motor
-    leader.setControl(voltageOut.withOutput(voltage));
+  public void setVelocity(AngularVelocity velocity) {
+    // Apply the velocity output to the leader motor
+    leader.setControl(velocityOut.withVelocity(velocity));
   }
 
   /**
@@ -64,7 +71,7 @@ public class Flywheel extends SubsystemBase {
    */
   public Command runSlow() {
     // Command to run the flywheel at a slow speed
-    return runOnce(() -> setVoltage(3));
+    return runOnce(() -> setVelocity(RotationsPerSecond.of(0.25)));
   }
 
   /**
@@ -74,7 +81,7 @@ public class Flywheel extends SubsystemBase {
    */
   public Command runFast() {
     // Command to run the flywheel at a fast speed
-    return runOnce(() -> setVoltage(6));
+    return runOnce(() -> setVelocity(DegreesPerSecond.of(360)));
   }
 
   // Stop the flywheel motors

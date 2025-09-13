@@ -4,14 +4,20 @@
 
 package frc.robot.subsystems;
 
+import static edu.wpi.first.units.Units.Degrees;
+import static edu.wpi.first.units.Units.Rotations;
+
 import com.ctre.phoenix6.CANBus;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
-import com.ctre.phoenix6.controls.VoltageOut;
+import com.ctre.phoenix6.controls.PositionVoltage;
 import com.ctre.phoenix6.hardware.CANcoder;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.FeedbackSensorSourceValue;
+import com.ctre.phoenix6.signals.GravityTypeValue;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
+import com.ctre.phoenix6.signals.StaticFeedforwardSignValue;
+import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
@@ -24,8 +30,8 @@ public class Arm extends SubsystemBase {
   // Create and absolute encoder that the motor can refrence for position
   private final CANcoder encoder = new CANcoder(32, canivore);
 
-  // Voltage output control for the arm
-  private final VoltageOut voltageOut = new VoltageOut(0);
+  // Position output control for the arm
+  private final PositionVoltage positionOut = new PositionVoltage(0);
 
   public Arm() {
     // Create and apply the configuration for the leader motor
@@ -34,6 +40,12 @@ public class Arm extends SubsystemBase {
     config.MotorOutput.NeutralMode = NeutralModeValue.Coast;
     // Configure the motor to make sure positive voltage is counter clockwise
     config.MotorOutput.Inverted = InvertedValue.CounterClockwise_Positive;
+    config.Slot0.GravityType = GravityTypeValue.Arm_Cosine; // Use cosine gravity compensation
+    config.Slot0.kG = 0.0; // Gravity gain
+    config.Slot0.kS = 0.0; // Static gain
+    config.Slot0.kP = 0.0; // Proportional gain
+    config.Slot0.kD = 0.0; // Derivative gain
+    config.Slot0.StaticFeedforwardSign = StaticFeedforwardSignValue.UseClosedLoopSign;
     // Configure the leader motor to use the CANcoder for position feedback
     config.Feedback.FeedbackSensorSource = FeedbackSensorSourceValue.RemoteCANcoder;
     config.Feedback.FeedbackRemoteSensorID = encoder.getDeviceID();
@@ -50,33 +62,33 @@ public class Arm extends SubsystemBase {
   }
 
   /**
-   * Sets the voltage for the arm.
+   * Sets the position for the arm.
    *
-   * @param voltage The voltage to set.
+   * @param position The position to set.
    */
-  public void setVoltage(double voltage) {
-    // Apply the voltage output to the leader motor
-    leader.setControl(voltageOut.withOutput(voltage));
+  public void setPosition(Angle position) {
+    // Apply the position output to the leader motor
+    leader.setControl(positionOut.withPosition(position));
   }
 
   /**
-   * Command to run the arm at a slow speed.
+   * Command to run the arm to vertical position.
    *
-   * @return The command to run the arm slowly.
+   * @return The command to run the arm vertical.
    */
-  public Command runSlow() {
-    // Command to run the arm at a slow speed and stop it afterward
-    return startEnd(() -> setVoltage(3), () -> stop());
+  public Command vertical() {
+    // Command to run the arm to vertical position and stop it afterward
+    return startEnd(() -> setPosition(Degrees.of(90)), () -> stop());
   }
 
   /**
-   * Command to run the arm at a fast speed.
+   * Command to run the arm to a horizontal position.
    *
-   * @return The command to run the arm quickly.
+   * @return The command to run the arm horizontal.
    */
-  public Command runFast() {
-    // Command to run the arm at a fast speed and stop it afterward
-    return startEnd(() -> setVoltage(6), () -> stop());
+  public Command horizontal() {
+    // Command to run the arm to horizontal position and stop it afterward
+    return startEnd(() -> setPosition(Rotations.of(0.5)), () -> stop());
   }
 
   // Stop the arm motor

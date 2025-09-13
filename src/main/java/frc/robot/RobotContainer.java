@@ -25,9 +25,10 @@ public class RobotContainer {
   }
 
   private void configureBindings() {
-    // When left trigger is pressed the arm will run at a fast speed, and when not pressed it will
+    // When left trigger is pressed the arm will go to vertical position, and when not pressed it
+    // will
     // stop
-    joystick.leftTrigger().whileTrue(arm.runFast());
+    joystick.leftTrigger().whileTrue(arm.vertical());
 
     // When right trigger is pressed the flywheel will run at a fast speed, and when not pressed it
     // will spin slow
