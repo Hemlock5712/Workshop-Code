@@ -10,7 +10,7 @@ import static edu.wpi.first.units.Units.RotationsPerSecond;
 import com.ctre.phoenix6.CANBus;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.Follower;
-import com.ctre.phoenix6.controls.VelocityVoltage;
+import com.ctre.phoenix6.controls.MotionMagicVelocityVoltage;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
@@ -28,7 +28,7 @@ public class Flywheel extends SubsystemBase {
   private final TalonFX follower = new TalonFX(22, canivore);
 
   // Velocity output control for the flywheel
-  private final VelocityVoltage velocityOut = new VelocityVoltage(0);
+  private final MotionMagicVelocityVoltage velocityOut = new MotionMagicVelocityVoltage(0);
 
   public Flywheel() {
     // Set the follower to follow the leader motor
@@ -42,6 +42,8 @@ public class Flywheel extends SubsystemBase {
     config.Slot0.kS = 0.0; // Static gain
     config.Slot0.kV = 0.0; // Velocity gain
     config.Slot0.kP = 0.0; // Proportional gain
+    config.MotionMagic.MotionMagicCruiseVelocity = 0.0; // Max velocity
+    config.MotionMagic.MotionMagicAcceleration = 0.0; // Max acceleration allowed
     // Try to apply config multiple time. Break after successfully applying
     for (int i = 0; i < 2; ++i) {
       var status = leader.getConfigurator().apply(config);
