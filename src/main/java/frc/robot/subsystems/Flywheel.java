@@ -11,6 +11,7 @@ import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
+import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
 public class Flywheel extends SubsystemBase {
@@ -54,6 +55,26 @@ public class Flywheel extends SubsystemBase {
   public void setVoltage(double voltage) {
     // Apply the voltage output to the leader motor
     leader.setControl(voltageOut.withOutput(voltage));
+  }
+
+  /**
+   * Command to run the flywheel at a slow speed.
+   *
+   * @return The command to run the flywheel slowly.
+   */
+  public Command runSlow() {
+    // Command to run the flywheel at a slow speed
+    return runOnce(() -> setVoltage(3));
+  }
+
+  /**
+   * Command to run the flywheel at a fast speed.
+   *
+   * @return The command to run the flywheel fast.
+   */
+  public Command runFast() {
+    // Command to run the flywheel at a fast speed
+    return runOnce(() -> setVoltage(6));
   }
 
   // Stop the flywheel motors

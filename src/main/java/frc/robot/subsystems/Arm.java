@@ -12,6 +12,7 @@ import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.FeedbackSensorSourceValue;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
+import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
 public class Arm extends SubsystemBase {
@@ -56,6 +57,26 @@ public class Arm extends SubsystemBase {
   public void setVoltage(double voltage) {
     // Apply the voltage output to the leader motor
     leader.setControl(voltageOut.withOutput(voltage));
+  }
+
+  /**
+   * Command to run the arm at a slow speed.
+   *
+   * @return The command to run the arm slowly.
+   */
+  public Command runSlow() {
+    // Command to run the arm at a slow speed and stop it afterward
+    return startEnd(() -> setVoltage(3), () -> stop());
+  }
+
+  /**
+   * Command to run the arm at a fast speed.
+   *
+   * @return The command to run the arm quickly.
+   */
+  public Command runFast() {
+    // Command to run the arm at a fast speed and stop it afterward
+    return startEnd(() -> setVoltage(6), () -> stop());
   }
 
   // Stop the arm motor
