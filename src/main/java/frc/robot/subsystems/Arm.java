@@ -32,6 +32,9 @@ public class Arm extends SubsystemBase {
   // Position output control for the arm
   private final MotionMagicVoltage positionOut = new MotionMagicVoltage(0);
 
+  // Tolerance for the arm position
+  private final Angle tolerance = Degrees.of(1.0);
+
   public Arm() {
     // Create and apply the configuration for the leader motor
     TalonFXConfiguration config = new TalonFXConfiguration();
@@ -89,6 +92,36 @@ public class Arm extends SubsystemBase {
   public Command horizontal() {
     // Command to run the arm to horizontal position and stop it afterward
     return startEnd(() -> setPosition(Rotations.of(0.5)), () -> stop());
+  }
+
+  /**
+   * Checks if the arm is at its target position.
+   *
+   * @return true if at target position, false otherwise
+   */
+  public boolean isAtTarget() {
+    // Check if the arm's position is near the target position
+    return getPosition().isNear(getTargetPosition(), tolerance);
+  }
+
+  /**
+   * Gets the current position of the arm.
+   *
+   * @return The current position of the arm.
+   */
+  public Angle getPosition() {
+    // Get the current position of the arm from the CANcoder
+    return encoder.getPosition().getValue();
+  }
+
+  /**
+   * Gets the target position for the arm.
+   *
+   * @return The target position of the arm.
+   */
+  public Angle getTargetPosition() {
+    // Return the target position
+    return positionOut.getPositionMeasure();
   }
 
   // Stop the arm motor

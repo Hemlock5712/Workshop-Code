@@ -30,6 +30,9 @@ public class Flywheel extends SubsystemBase {
   // Velocity output control for the flywheel
   private final MotionMagicVelocityVoltage velocityOut = new MotionMagicVelocityVoltage(0);
 
+  // Tolerance for the flywheel velocity
+  private final AngularVelocity tolerance = RotationsPerSecond.of(0.25);
+
   public Flywheel() {
     // Set the follower to follow the leader motor
     follower.setControl(new Follower(leader.getDeviceID(), true));
@@ -84,6 +87,38 @@ public class Flywheel extends SubsystemBase {
   public Command runFast() {
     // Command to run the flywheel at a fast speed
     return runOnce(() -> setVelocity(DegreesPerSecond.of(360)));
+  }
+
+  /**
+   * Checks if the flywheel is at its target speed.
+   *
+   * @return true if at target speed, false otherwise
+   */
+  public boolean isAtTarget() {
+    return getVelocity()
+        .isNear(
+            getTargetVelocity(),
+            tolerance); // Check if the current velocity is near the target velocity
+  }
+
+  /**
+   * Gets the current velocity of the flywheel.
+   *
+   * @return The current velocity of the flywheel.
+   */
+  public AngularVelocity getVelocity() {
+    // Get the current velocity of the flywheel
+    return leader.getVelocity().getValue();
+  }
+
+  /**
+   * Gets the target velocity for the flywheel.
+   *
+   * @return The target velocity of the flywheel.
+   */
+  public AngularVelocity getTargetVelocity() {
+    // Return the target velocity
+    return velocityOut.getVelocityMeasure();
   }
 
   // Stop the flywheel motors
