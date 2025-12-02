@@ -37,6 +37,8 @@ public class RobotContainer {
 
   public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
 
+  private final Telemetry logger = new Telemetry(MaxSpeed);
+
   /* Path follower */
   private final SendableChooser<Command> autoChooser;
 
@@ -72,6 +74,8 @@ public class RobotContainer {
     final var idle = new SwerveRequest.Idle();
     RobotModeTriggers.disabled()
         .whileTrue(drivetrain.applyRequest(() -> idle).ignoringDisable(true));
+
+    drivetrain.registerTelemetry(logger::telemeterize);
   }
 
   public Command getAutonomousCommand() {
