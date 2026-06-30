@@ -4,12 +4,17 @@
 
 package frc.robot;
 
-import edu.wpi.first.wpilibj.RobotBase;
+import org.wpilib.framework.RobotBase;
 
+/**
+ * Do NOT add any static variables to this class, or any initialization at all. Unless you know what
+ * you are doing, do not modify this file except to change the parameter class to the startRobot
+ * call.
+ */
 public final class Main {
   private Main() {}
 
   public static void main(String... args) {
-    RobotBase.startRobot(Robot::new);
+    RobotBase.startRobot(Robot.class);
   }
 }

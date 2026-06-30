@@ -1,50 +1,61 @@
+// WPILib 2027 is in ALPHA - pinned to alpha-6 on purpose. The OpMode/Commands-v3 APIs are still
+// moving; do NOT bump this casually. Known-volatile APIs to re-check when updating:
+//   - org.wpilib.opmode "Test" mode was renamed to @Utility (done, in use here)
+//   - UserControls / @UserControlsInstance was REMOVED upstream - do not adopt it (we don't)
+//   - the command-based authoring shape (CommandOpMode/CommandRobot) is still an open proposal
+// See ONBOARDING.md for the OpMode wiring model.
 plugins {
     id "java"
-    id "edu.wpi.first.GradleRIO" version "2025.3.2"
-    id "com.diffplug.spotless" version "6.12.0"
+    id "org.wpilib.GradleRIO" version "2027.0.0-alpha-6"
+    id "com.gradleup.shadow" version "9.3.0"
+    id "com.diffplug.spotless" version "7.0.2"
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
 }
 
 def ROBOT_MAIN_CLASS = "frc.robot.Main"
 
-// Define my targets (RoboRIO) and artifacts (deployable files)
+// Define my targets (SystemCore) and artifacts (deployable files)
 // This is added by GradleRIO's backing project DeployUtils.
 deploy {
     targets {
-        roborio(getTargetTypeClass('RoboRIO')) {
+        systemcore(getTargetTypeClass('SystemCore')) {
             // Team number is loaded either from the .wpilib/wpilib_preferences.json
             // or from command line. If not found an exception will be thrown.
             // You can use getTeamOrDefault(team) instead of getTeamNumber if you
             // want to store a team number in this file.
-            team = project.frc.getTeamNumber()
-            debug = project.frc.getDebugOrDefault(false)
+            team = project.wpilib.getTeamNumber()
+            // Use the default systemcore host name. This must be called after setting team
+            // as happens on the line above
+            useDefaultSystemcoreHostName()
+            debug = project.wpilib.getDebugOrDefault(false)
 
             artifacts {
                 // First part is artifact name, 2nd is artifact type
                 // getTargetTypeClass is a shortcut to get the class type using a string
 
-                frcJava(getArtifactTypeClass('FRCJavaArtifact')) {
+                wpilibJava(getArtifactTypeClass('WPILibJavaArtifact')) {
                 }
 
                 // Static files artifact
-                frcStaticFileDeploy(getArtifactTypeClass('FileTreeArtifact')) {
+                wpilibStaticFileDeploy(getArtifactTypeClass('FileTreeArtifact')) {
                     files = project.fileTree('src/main/deploy')
-                    directory = '/home/lvuser/deploy'
-                    deleteOldFiles = false // Change to true to delete files on roboRIO that no
-                    // longer exist in deploy directory of this project
+                    directory = '/home/systemcore/deploy'
+                    deleteOldFiles = true  // Change to true to delete files on systemcore that no
+                                           // longer exist in deploy directory of this project
                 }
             }
         }
     }
 }
 
-def deployArtifact = deploy.targets.roborio.artifacts.frcJava
+def deployArtifact = deploy.targets.systemcore.artifacts.wpilibJava
 
-// Set to true to use debug for JNI.
+// Set to true to use debug for all targets including JNI, which will drastically impact
+// performance.
 wpi.java.debugJni = false
 
 // Set this to true to enable desktop support.
@@ -57,11 +68,11 @@ dependencies {
     implementation wpi.java.deps.wpilib()
     implementation wpi.java.vendor.java()
 
-    roborioDebug wpi.java.deps.wpilibJniDebug(wpi.platforms.roborio)
-    roborioDebug wpi.java.vendor.jniDebug(wpi.platforms.roborio)
+    systemcoreDebug wpi.java.deps.wpilibJniDebug(wpi.platforms.systemcore)
+    systemcoreDebug wpi.java.vendor.jniDebug(wpi.platforms.systemcore)
 
-    roborioRelease wpi.java.deps.wpilibJniRelease(wpi.platforms.roborio)
-    roborioRelease wpi.java.vendor.jniRelease(wpi.platforms.roborio)
+    systemcoreRelease wpi.java.deps.wpilibJniRelease(wpi.platforms.systemcore)
+    systemcoreRelease wpi.java.vendor.jniRelease(wpi.platforms.systemcore)
 
     nativeDebug wpi.java.deps.wpilibJniDebug(wpi.platforms.desktop)
     nativeDebug wpi.java.vendor.jniDebug(wpi.platforms.desktop)
@@ -81,22 +92,54 @@ test {
 }
 
 // Simulation configuration (e.g. environment variables).
-wpi.sim.addGui().defaultEnabled = true
-wpi.sim.addDriverstation()
+//
+// Headless / agent simulation -------------------------------------------------------------------
+//   ./gradlew simulateJava                         -> normal GUI sim (a human clicks Enable)
+//   ./gradlew simulateJavaAgent                    -> headless, robot auto-enables in AUTONOMOUS
+//   ./gradlew simulateJavaAgent -Pmode=teleop      -> headless, auto-enables in TELEOP
+//   ./gradlew simulateJavaAgent -Pmode=auto:"Drive To Pose"  -> pick a specific @Autonomous OpMode
+//   ./gradlew simulateJava -Pheadless -Pmode=auto  -> same headless behavior on the base task
+// SimStartup.java reads the frc.sim.startMode system property wired below; see the run-sim skill.
+def runningAgentSim = gradle.startParameter.taskNames.any { it.endsWith('simulateJavaAgent') }
+def headless = runningAgentSim || project.hasProperty('headless')
 
-// Setting up my Jar File. In this case, adding all libraries into the main jar ('fat jar')
-// in order to make them all available at runtime. Also adding the manifest so WPILib
-// knows where to look for our Robot Class.
-jar {
-    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
-    from sourceSets.main.allSource
-    manifest edu.wpi.first.gradlerio.GradleRIOPlugin.javaManifest(ROBOT_MAIN_CLASS)
+// In headless mode, skip the Swing GUI and the socket DriverStation so nothing competes with the
+// programmatic enable that SimStartup performs via DriverStationSim.
+if (!headless) {
+    wpi.sim.addGui().defaultEnabled = true
+    wpi.sim.addDriverstation()
+}
+
+// The start mode SimStartup reads. Empty => stay disabled (the default for a plain simulateJava).
+// simulateJavaAgent defaults to "auto"; -Pmode=... overrides for either task.
+def simStartMode = (project.findProperty('mode') ?: (runningAgentSim ? 'auto' : '')).toString()
+tasks.withType(org.wpilib.gradlerio.simulation.JavaSimulationTask).configureEach {
+    systemProperty 'frc.sim.startMode', simStartMode
+}
+
+// Convenience alias: simulateJavaAgent == simulateJava with the headless wiring above (which keys
+// off this task name appearing in the requested tasks).
+tasks.register('simulateJavaAgent') {
+    group = 'GradleRIO'
+    description = 'Run headless simulation and auto-enable the robot (see the run-sim skill).'
+    dependsOn 'simulateJava'
+}
+
+// Setting up my Jar File. In this case, adding all libraries into the main jar ('fat/shaded jar')
+// in order to make them all available at runtime and merging service files to make JSON work.
+// Also adding the manifest so WPILib knows where to look for our Robot Class.
+shadowJar {
+    mergeServiceFiles()
+    from('src') { into 'backup/src' }
+    from('vendordeps') { into 'backup/vendordeps' }
+    from('build.gradle') { into 'backup' }
+    manifest org.wpilib.gradlerio.GradleRIOPlugin.javaManifest(ROBOT_MAIN_CLASS)
     duplicatesStrategy = DuplicatesStrategy.INCLUDE
 }
 
 // Configure jar and deploy tasks
-deployArtifact.jarTask = jar
-wpi.java.configureExecutableTasks(jar)
+deployArtifact.jarTask = shadowJar
+wpi.java.configureExecutableTasks(shadowJar)
 wpi.java.configureTestTasks(test)
 
 // Configure string concat to always inline compile
@@ -104,46 +147,26 @@ tasks.withType(JavaCompile) {
     options.compilerArgs.add '-XDstringConcat=inline'
 }
 
-project.compileJava.dependsOn(spotlessApply)
+// Code formatting. Uses Google Java Format, the same formatter WPILib uses
+// internally and the one the WPILib VS Code extension applies on save.
 spotless {
     java {
         target fileTree('.') {
             include '**/*.java'
-            exclude '**/build/**', '**/build-*/**', '**/bin/**'
+            exclude '**/build/**', '**/build-*/**'
         }
         toggleOffOn()
-        googleJavaFormat()
+        // Pin a google-java-format new enough for the JDK 25 toolchain. Spotless's default GJF
+        // version calls javac internals (Log$DeferredDiagnosticHandler.getDiagnostics()) that
+        // changed in recent JDKs, so on JDK 25 it dies with NoSuchMethodError. 1.35.0+ supports it.
+        googleJavaFormat('1.35.0')
         removeUnusedImports()
         trimTrailingWhitespace()
         endWithNewline()
     }
-    groovyGradle {
-        target fileTree('.') {
-            include '**/*.gradle'
-            exclude '**/build/**', '**/build-*/**'
-        }
-        greclipse()
-        indentWithSpaces(4)
-        trimTrailingWhitespace()
-        endWithNewline()
-    }
-    format 'xml', {
-        target fileTree('.') {
-            include '**/*.xml'
-            exclude '**/build/**', '**/build-*/**'
-        }
-        eclipseWtp('xml')
-        trimTrailingWhitespace()
-        indentWithSpaces(2)
-        endWithNewline()
-    }
-    format 'misc', {
-        target fileTree('.') {
-            include '**/*.md', '**/.gitignore'
-            exclude '**/build/**', '**/build-*/**'
-        }
-        trimTrailingWhitespace()
-        indentWithSpaces(2)
-        endWithNewline()
-    }
+}
+
+// Auto-format every time the code compiles (i.e. on build/deploy/simulate).
+tasks.withType(JavaCompile).configureEach {
+    dependsOn 'spotlessApply'
 }
