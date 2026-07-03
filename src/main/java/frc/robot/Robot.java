@@ -6,6 +6,7 @@ package frc.robot;
 
 import com.ctre.phoenix6.swerve.SwerveRequest;
 import frc.robot.subsystems.DriveMechanism;
+import frc.robot.subsystems.Flywheel;
 import frc.robot.subsystems.Limelight;
 import frc.robot.utils.SimStartup;
 import org.wpilib.command3.Scheduler;
@@ -24,6 +25,9 @@ import org.wpilib.system.DataLogManager;
  */
 public class Robot extends OpModeRobot {
   public final DriveMechanism drivetrain = new DriveMechanism();
+
+  // The flywheel reads the drivetrain's position to pick its shooting speed.
+  public final Flywheel flywheel = new Flywheel(drivetrain);
 
   public Robot() {
     // Start logging. DataLogManager records every NetworkTables value change (including
