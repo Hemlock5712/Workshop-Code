@@ -6,13 +6,12 @@ package frc.robot.subsystems;
 
 import com.ctre.phoenix6.CANBus;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
-import com.ctre.phoenix6.controls.PositionVoltage;
+import com.ctre.phoenix6.controls.MotionMagicVoltage;
 import com.ctre.phoenix6.hardware.CANcoder;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.GravityTypeValue;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
-import com.ctre.phoenix6.signals.StaticFeedforwardSignValue;
 import frc.robot.utils.TalonFXUtil;
 import org.wpilib.command3.Command;
 import org.wpilib.command3.Mechanism;
@@ -20,14 +19,10 @@ import org.wpilib.command3.Mechanism;
 /**
  * The arm. One TalonFX motor plus a CANcoder that measures the arm's angle.
  *
- * <p>New in this lesson: closed-loop <b>position</b> control ({@link PositionVoltage}). Instead of
- * pushing a voltage and hoping, each command picks a target angle. The motor's PID controller
- * steers to that angle and holds it.
- *
- * <p>Also new: there is no stop command anymore. A {@code Mechanism} with nothing commanding it
- * runs an idle default command on its own, so we don't have to write one.
- *
- * <p>The next lesson (4-MotionMagic) adds a motion profile on top of the same gains.
+ * <p>New in this lesson: <b>Motion Magic</b> position control ({@link MotionMagicVoltage}). Same
+ * gains as 3-PID, but instead of steering straight at the target, the motor follows a smooth speed
+ * ramp: speed up, cruise, slow down. The ramp is called a motion profile, and it keeps the arm from
+ * jerking.
  */
 public class Arm extends Mechanism {
   // Target positions (rotations, 1.0 = one full turn).
@@ -44,24 +39,32 @@ public class Arm extends Mechanism {
   private static final double kP = 0.0; // NEEDS TUNING - proportional gain
   private static final double kD = 0.0; // NEEDS TUNING - derivative gain
 
+  // Motion Magic speed limits: how fast the arm may move and how quickly it may speed up.
+  // TODO: CRITICAL - set these before running the arm. Good starting values:
+  // cruise=2 rot/s, accel=4 rot/s².
+  private static final double MOTION_MAGIC_CRUISE_VELOCITY = 0.0; // NEEDS SETTING - max rot/s
+  private static final double MOTION_MAGIC_ACCELERATION = 0.0; // NEEDS SETTING - max rot/s²
+
   private final CANBus canivore = new CANBus("canivore");
   private final TalonFX motor = new TalonFX(31, canivore);
   private final CANcoder encoder = new CANcoder(32, canivore);
 
-  // Asks the motor's PID to move the arm to a target angle and hold it.
-  private final PositionVoltage positionOut = new PositionVoltage(0);
+  // Moves the arm to a target angle along a smooth Motion Magic ramp.
+  private final MotionMagicVoltage positionOut = new MotionMagicVoltage(0);
 
   public Arm() {
     TalonFXConfiguration config = new TalonFXConfiguration();
     config.MotorOutput.NeutralMode = NeutralModeValue.Coast; // easy to move by hand
     config.MotorOutput.Inverted = InvertedValue.CounterClockwise_Positive;
     config.Slot0.GravityType = GravityTypeValue.Arm_Cosine; // fights gravity automatically
-    config.Slot0.StaticFeedforwardSign = StaticFeedforwardSignValue.UseClosedLoopSign;
 
     config.Slot0.kG = kG;
     config.Slot0.kS = kS;
     config.Slot0.kP = kP;
     config.Slot0.kD = kD;
+
+    config.MotionMagic.MotionMagicCruiseVelocity = MOTION_MAGIC_CRUISE_VELOCITY;
+    config.MotionMagic.MotionMagicAcceleration = MOTION_MAGIC_ACCELERATION;
 
     // Use the CANcoder for position, so PID works on the arm's real angle.
     config.Feedback.withRemoteCANcoder(encoder);

@@ -9,7 +9,7 @@ import static org.wpilib.units.Units.RotationsPerSecond;
 import com.ctre.phoenix6.CANBus;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.Follower;
-import com.ctre.phoenix6.controls.VelocityVoltage;
+import com.ctre.phoenix6.controls.MotionMagicVelocityVoltage;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.MotorAlignmentValue;
@@ -22,9 +22,9 @@ import org.wpilib.command3.Mechanism;
  * The flywheel. Two TalonFX motors: a leader (CAN 21) and a follower (CAN 22) that spins the
  * opposite direction.
  *
- * <p>New in this lesson: closed-loop <b>velocity</b> control ({@link VelocityVoltage}). Each
- * command picks a speed in rotations per second, and the motor's PID holds that speed even when
- * game pieces slow the wheel down.
+ * <p>New in this lesson: <b>Motion Magic</b> velocity control ({@link MotionMagicVelocityVoltage}).
+ * Same gains as 3-PID, but the speed now ramps up to the target along an acceleration limit instead
+ * of jumping straight to it.
  */
 public class Flywheel extends Mechanism {
   // Shooting speeds (rotations per second).
@@ -36,12 +36,16 @@ public class Flywheel extends Mechanism {
   private static final double kV = 0.125; // volts per rotation-per-second
   private static final double kP = 0.0; // correction strength
 
+  // Motion Magic limits: how fast the wheel may spin and how quickly it may speed up.
+  private static final double MOTION_MAGIC_CRUISE_VELOCITY = 100.0; // top speed (rot/s)
+  private static final double MOTION_MAGIC_ACCELERATION = 1000.0; // ramp rate (rot/s²)
+
   private final CANBus canivore = new CANBus("canivore");
   private final TalonFX leader = new TalonFX(21, canivore);
   private final TalonFX follower = new TalonFX(22, canivore);
 
-  // Asks the motor's PID to hold a target speed.
-  private final VelocityVoltage velocityOut = new VelocityVoltage(0);
+  // Asks the motor to ramp to a target speed instead of jumping to it.
+  private final MotionMagicVelocityVoltage velocityOut = new MotionMagicVelocityVoltage(0);
 
   public Flywheel() {
     // The follower copies the leader, spinning the opposite direction.
@@ -53,6 +57,8 @@ public class Flywheel extends Mechanism {
     config.Slot0.kS = kS;
     config.Slot0.kV = kV;
     config.Slot0.kP = kP;
+    config.MotionMagic.MotionMagicCruiseVelocity = MOTION_MAGIC_CRUISE_VELOCITY;
+    config.MotionMagic.MotionMagicAcceleration = MOTION_MAGIC_ACCELERATION;
 
     TalonFXUtil.applyConfigWithRetries(leader, config);
   }
