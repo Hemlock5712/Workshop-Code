@@ -13,16 +13,22 @@ import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.MotorAlignmentValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import frc.robot.utils.TalonFXUtil;
+import org.wpilib.command3.Command;
 import org.wpilib.command3.Mechanism;
 
 /**
  * The flywheel. Two TalonFX motors: a leader (CAN 21) and a follower (CAN 22) that spins the
  * opposite direction.
  *
- * <p>Same pattern as {@link Arm}: extend {@code Mechanism}, keep the hardware in private fields,
- * set it up once in the constructor. For now it can only push a voltage at the motors.
+ * <p>Same idea as {@link Arm}: the raw setter is now private, and the flywheel offers commands
+ * instead. The commands still push plain voltage. In the next lesson (3-PID) we switch to real
+ * velocity control.
  */
 public class Flywheel extends Mechanism {
+  // Voltages for the two example commands.
+  private static final double SLOW_VOLTAGE = 3.0;
+  private static final double FAST_VOLTAGE = 6.0;
+
   private final CANBus canivore = new CANBus("canivore");
   private final TalonFX leader = new TalonFX(21, canivore);
   private final TalonFX follower = new TalonFX(22, canivore);
@@ -41,17 +47,27 @@ public class Flywheel extends Mechanism {
     TalonFXUtil.applyConfigWithRetries(leader, config);
   }
 
-  /**
-   * Spin the flywheel with a fixed voltage.
-   *
-   * @param voltage The voltage to apply.
-   */
-  public void setVoltage(double voltage) {
-    leader.setControl(voltageOut.withOutput(voltage));
+  // Same setup as Arm: runRepeatedly runs the action every loop while the command is scheduled.
+  // These commands are all HOLDS. A hold never finishes, so never make a sequence wait on one.
+  // Need an ending? Add it where you use the command: flywheel.runFast().until(someCondition).
+  // The full rule is in Arm.java.
+
+  /** Spin the flywheel with a gentle voltage and hold it there. Never finishes. */
+  public Command runSlow() {
+    return runRepeatedly(() -> setVoltage(SLOW_VOLTAGE)).named("runSlow (hold)");
   }
 
-  /** Stop the flywheel motors. */
-  public void stop() {
-    leader.stopMotor();
+  /** Spin the flywheel with a stronger voltage and hold it there. Never finishes. */
+  public Command runFast() {
+    return runRepeatedly(() -> setVoltage(FAST_VOLTAGE)).named("runFast (hold)");
+  }
+
+  /** Stop the flywheel and keep it stopped. Never finishes. */
+  public Command stop() {
+    return runRepeatedly(leader::stopMotor).named("stop (hold)");
+  }
+
+  private void setVoltage(double voltage) {
+    leader.setControl(voltageOut.withOutput(voltage));
   }
 }
