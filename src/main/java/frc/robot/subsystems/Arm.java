@@ -6,11 +6,13 @@ package frc.robot.subsystems;
 
 import com.ctre.phoenix6.CANBus;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
-import com.ctre.phoenix6.controls.VoltageOut;
+import com.ctre.phoenix6.controls.PositionVoltage;
 import com.ctre.phoenix6.hardware.CANcoder;
 import com.ctre.phoenix6.hardware.TalonFX;
+import com.ctre.phoenix6.signals.GravityTypeValue;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
+import com.ctre.phoenix6.signals.StaticFeedforwardSignValue;
 import frc.robot.utils.TalonFXUtil;
 import org.wpilib.command3.Command;
 import org.wpilib.command3.Mechanism;
@@ -18,31 +20,50 @@ import org.wpilib.command3.Mechanism;
 /**
  * The arm. One TalonFX motor plus a CANcoder that measures the arm's angle.
  *
- * <p>New in this lesson: the raw setter is now {@code private}, and the arm offers <b>commands</b>
- * instead (each method returns a {@link Command}). Anything that wants to move the arm goes through
- * a command. That is how the scheduler keeps two things from fighting over the motor.
+ * <p>New in this lesson: closed-loop <b>position</b> control ({@link PositionVoltage}). Instead of
+ * pushing a voltage and hoping, each command picks a target angle. The motor's PID controller
+ * steers to that angle and holds it.
  *
- * <p>The commands still just push a voltage, so where the arm ends up depends on gravity and
- * friction. In the next lesson (3-PID) we make the motor aim for a real target instead.
+ * <p>Also new: there is no stop command anymore. A {@code Mechanism} with nothing commanding it
+ * runs an idle default command on its own, so we don't have to write one.
+ *
+ * <p>The next lesson (4-MotionMagic) adds a motion profile on top of the same gains.
  */
 public class Arm extends Mechanism {
-  // Voltages for the two example commands.
-  private static final double SLOW_VOLTAGE = 3.0;
-  private static final double FAST_VOLTAGE = 6.0;
+  // Target positions (rotations, 1.0 = one full turn).
+  private static final double VERTICAL_POSITION = 0.25; // 90°  - stowed / safe transport
+  private static final double HORIZONTAL_POSITION = 0.5; // 180° - ground intake
+
+  // PID + feedforward gains.
+  // TODO: CRITICAL - tune on the real robot before driving the arm under power.
+  // Safe starting values: kG=0.2 (fights gravity), kS=0.2 (overcomes friction),
+  //                       kP=160 (correction strength), kD=30 (smoothness).
+  // If the arm jerks or moves too fast, make these smaller.
+  private static final double kG = 0.0; // NEEDS TUNING - gravity feedforward
+  private static final double kS = 0.0; // NEEDS TUNING - static friction feedforward
+  private static final double kP = 0.0; // NEEDS TUNING - proportional gain
+  private static final double kD = 0.0; // NEEDS TUNING - derivative gain
 
   private final CANBus canivore = new CANBus("canivore");
   private final TalonFX motor = new TalonFX(31, canivore);
   private final CANcoder encoder = new CANcoder(32, canivore);
 
-  // Pushes a set voltage at the motor. No sensors involved.
-  private final VoltageOut voltageOut = new VoltageOut(0);
+  // Asks the motor's PID to move the arm to a target angle and hold it.
+  private final PositionVoltage positionOut = new PositionVoltage(0);
 
   public Arm() {
     TalonFXConfiguration config = new TalonFXConfiguration();
     config.MotorOutput.NeutralMode = NeutralModeValue.Coast; // easy to move by hand
     config.MotorOutput.Inverted = InvertedValue.CounterClockwise_Positive;
+    config.Slot0.GravityType = GravityTypeValue.Arm_Cosine; // fights gravity automatically
+    config.Slot0.StaticFeedforwardSign = StaticFeedforwardSignValue.UseClosedLoopSign;
 
-    // Use the CANcoder for position, so the motor knows the arm's real angle.
+    config.Slot0.kG = kG;
+    config.Slot0.kS = kS;
+    config.Slot0.kP = kP;
+    config.Slot0.kD = kD;
+
+    // Use the CANcoder for position, so PID works on the arm's real angle.
     config.Feedback.withRemoteCANcoder(encoder);
 
     TalonFXUtil.applyConfigWithRetries(motor, config);
@@ -55,27 +76,22 @@ public class Arm extends Mechanism {
   // WAIT for a hold. A hold inside Command.sequence sticks there forever. If a step needs an
   // ending, add one where you use the command instead of writing a new method here:
   //
-  //   arm.runSlow().until(someCondition)   // ends when the condition turns true
+  //   arm.vertical().until(someCondition)   // ends when the condition turns true
   //
   // Every hold has "(hold)" in its name. Names show up on the dashboard and in logs, so if a
   // stuck sequence is sitting on a "(hold)", you found the bug.
 
-  /** Push the arm with a gentle voltage and keep pushing. Never finishes. See the rule above. */
-  public Command runSlow() {
-    return runRepeatedly(() -> setVoltage(SLOW_VOLTAGE)).named("runSlow (hold)");
+  /** Move to the vertical (stowed) position and hold it. Never finishes. See the rule above. */
+  public Command vertical() {
+    return runRepeatedly(() -> setPosition(VERTICAL_POSITION)).named("vertical (hold)");
   }
 
-  /** Push the arm with a stronger voltage and keep pushing. Never finishes. */
-  public Command runFast() {
-    return runRepeatedly(() -> setVoltage(FAST_VOLTAGE)).named("runFast (hold)");
+  /** Move to the horizontal (ground intake) position and hold it. Never finishes. */
+  public Command horizontal() {
+    return runRepeatedly(() -> setPosition(HORIZONTAL_POSITION)).named("horizontal (hold)");
   }
 
-  /** Stop the arm motor and keep it stopped. Never finishes. */
-  public Command stop() {
-    return runRepeatedly(motor::stopMotor).named("stop (hold)");
-  }
-
-  private void setVoltage(double voltage) {
-    motor.setControl(voltageOut.withOutput(voltage));
+  private void setPosition(double rotations) {
+    motor.setControl(positionOut.withPosition(rotations));
   }
 }
