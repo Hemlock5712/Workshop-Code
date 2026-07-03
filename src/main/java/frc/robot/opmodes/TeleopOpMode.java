@@ -11,9 +11,12 @@ import static org.wpilib.units.Units.RotationsPerSecond;
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 import frc.robot.Robot;
+import frc.robot.commands.DriveToPoint;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.DriveMechanism;
 import org.wpilib.command3.button.CommandNiDsXboxController;
+import org.wpilib.math.geometry.Pose2d;
+import org.wpilib.math.geometry.Rotation2d;
 import org.wpilib.opmode.PeriodicOpMode;
 import org.wpilib.opmode.Teleop;
 
@@ -56,5 +59,11 @@ public class TeleopOpMode extends PeriodicOpMode {
 
     // Left bumper: make the robot's current facing the new "forward".
     driver.leftBumper().onTrue(drivetrain.seedFieldCentric());
+
+    // Hold A or B to drive straight to a fixed spot on the field. Let go to stop.
+    driver.a().whileTrue(new DriveToPoint(drivetrain, Pose2d.kZero));
+    driver
+        .b()
+        .whileTrue(new DriveToPoint(drivetrain, new Pose2d(3, 2, Rotation2d.fromDegrees(180))));
   }
 }
