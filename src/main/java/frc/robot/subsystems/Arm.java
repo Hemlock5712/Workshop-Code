@@ -4,6 +4,8 @@
 
 package frc.robot.subsystems;
 
+import static org.wpilib.units.Units.Degrees;
+
 import com.ctre.phoenix6.CANBus;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.MotionMagicVoltage;
@@ -15,19 +17,26 @@ import com.ctre.phoenix6.signals.NeutralModeValue;
 import frc.robot.utils.TalonFXUtil;
 import org.wpilib.command3.Command;
 import org.wpilib.command3.Mechanism;
+import org.wpilib.units.measure.Angle;
 
 /**
  * The arm. One TalonFX motor plus a CANcoder that measures the arm's angle.
  *
- * <p>New in this lesson: <b>Motion Magic</b> position control ({@link MotionMagicVoltage}). Same
- * gains as 3-PID, but instead of steering straight at the target, the motor follows a smooth speed
- * ramp: speed up, cruise, slow down. The ramp is called a motion profile, and it keeps the arm from
- * jerking.
+ * <p>The motor uses Motion Magic position control ({@link MotionMagicVoltage}), added in
+ * 4-MotionMagic: it follows a smooth speed ramp to the target angle instead of jerking toward it.
+ *
+ * <p>New in this lesson (5-GettersAndSetters): the <b>read side</b>. {@link #getPosition} tells you
+ * where the arm is, {@link #getTargetPosition} tells you where it is headed, and {@link
+ * #isAtTarget} tells you whether it has arrived. That last check is how a hold gets an ending:
+ * {@code arm.vertical().until(arm::isAtTarget)} finishes when the arm is really there.
  */
 public class Arm extends Mechanism {
   // Target positions (rotations, 1.0 = one full turn).
   private static final double VERTICAL_POSITION = 0.25; // 90°  - stowed / safe transport
   private static final double HORIZONTAL_POSITION = 0.5; // 180° - ground intake
+
+  // How close counts as "at target".
+  private static final double POSITION_TOLERANCE_DEGREES = 1.0;
 
   // PID + feedforward gains.
   // TODO: CRITICAL - tune on the real robot before driving the arm under power.
@@ -51,6 +60,8 @@ public class Arm extends Mechanism {
 
   // Moves the arm to a target angle along a smooth Motion Magic ramp.
   private final MotionMagicVoltage positionOut = new MotionMagicVoltage(0);
+
+  private final Angle tolerance = Degrees.of(POSITION_TOLERANCE_DEGREES);
 
   public Arm() {
     TalonFXConfiguration config = new TalonFXConfiguration();
@@ -79,7 +90,7 @@ public class Arm extends Mechanism {
   // WAIT for a hold. A hold inside Command.sequence sticks there forever. If a step needs an
   // ending, add one where you use the command instead of writing a new method here:
   //
-  //   arm.vertical().until(someCondition)   // ends when the condition turns true
+  //   arm.vertical().until(arm::isAtTarget)   // ends when the arm arrives
   //
   // Every hold has "(hold)" in its name. Names show up on the dashboard and in logs, so if a
   // stuck sequence is sitting on a "(hold)", you found the bug.
@@ -92,6 +103,21 @@ public class Arm extends Mechanism {
   /** Move to the horizontal (ground intake) position and hold it. Never finishes. */
   public Command horizontal() {
     return runRepeatedly(() -> setPosition(HORIZONTAL_POSITION)).named("horizontal (hold)");
+  }
+
+  /** True when the arm has reached its target angle. */
+  public boolean isAtTarget() {
+    return getPosition().isNear(getTargetPosition(), tolerance);
+  }
+
+  /** Current measured arm angle. */
+  public Angle getPosition() {
+    return encoder.getPosition().getValue();
+  }
+
+  /** Angle the arm is currently driving toward. */
+  public Angle getTargetPosition() {
+    return positionOut.getPositionMeasure();
   }
 
   private void setPosition(double rotations) {
