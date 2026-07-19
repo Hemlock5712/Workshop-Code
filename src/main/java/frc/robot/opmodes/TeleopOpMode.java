@@ -18,42 +18,43 @@ import org.wpilib.opmode.PeriodicOpMode;
 import org.wpilib.opmode.Teleop;
 
 /**
- * Driver teleop. This is the OpMode-model replacement for {@code RobotContainer.configureBindings}:
- * a self-contained class for one driver experience. The framework constructs it when "Teleop" is
- * selected on the driver station and discards it on a mode switch; the button bindings created in
- * the constructor are scoped to this OpMode, so they are removed automatically - no cleanup needed.
+ * The driver's controls. The framework builds this class when "Teleop" is picked on the driver
+ * station. The button bindings made in the constructor belong to this OpMode, and the framework
+ * removes them on a mode switch. No cleanup code needed.
  *
- * <p>The drivetrain's default command (joystick drive) lives here rather than on the {@link Robot}
- * because it depends on this OpMode's controller. Add a second {@code @Teleop} class (e.g. a demo
- * or single-driver layout) and it shows up as another choice on the driver station.
+ * <p>The joystick-drive default command lives here, not in {@link Robot}, because it needs this
+ * OpMode's controller. Add a second {@code @Teleop} class and it shows up as another choice on the
+ * driver station.
  */
 @Teleop(name = "Teleop")
 public class TeleopOpMode extends PeriodicOpMode {
   private final double maxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // top speed
-  private final double maxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond); // 3/4 rps
+  private final double maxAngularRate =
+      RotationsPerSecond.of(0.75).in(RadiansPerSecond); // 3/4 turn per second
 
   private final SwerveRequest.FieldCentric drive =
       new SwerveRequest.FieldCentric()
           .withDeadband(maxSpeed * 0.1)
-          .withRotationalDeadband(maxAngularRate * 0.1) // 10% stick deadband
-          .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // open-loop drive motors
+          .withRotationalDeadband(maxAngularRate * 0.1) // ignore the sticks' bottom 10%
+          .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // plain voltage, no wheel PID
 
   private final CommandNiDsXboxController driver = new CommandNiDsXboxController(0);
 
   public TeleopOpMode(Robot robot) {
     final DriveMechanism drivetrain = robot.drivetrain;
 
-    // Note that X is defined as forward according to WPILib convention,
-    // and Y is defined as to the left according to WPILib convention.
+    // In WPILib, X points forward and Y points left. The sticks read the other way around, so
+    // each axis below gets a minus sign.
     drivetrain.setDefaultCommand(
         drivetrain.applyRequest(
             () ->
                 drive
-                    .withVelocityX(-driver.getLeftY() * maxSpeed) // forward with negative Y
-                    .withVelocityY(-driver.getLeftX() * maxSpeed) // left with negative X
-                    .withRotationalRate(-driver.getRightX() * maxAngularRate))); // CCW with -X
+                    .withVelocityX(-driver.getLeftY() * maxSpeed) // left stick up = forward
+                    .withVelocityY(-driver.getLeftX() * maxSpeed) // left stick left = left
+                    .withRotationalRate(
+                        -driver.getRightX() * maxAngularRate))); // right stick left = turn left
 
-    // Reset the field-centric heading on left bumper press.
+    // Left bumper: make the robot's current facing the new "forward".
     driver.leftBumper().onTrue(drivetrain.seedFieldCentric());
   }
 }

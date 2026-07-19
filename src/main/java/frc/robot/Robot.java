@@ -12,30 +12,27 @@ import org.wpilib.command3.button.RobotModeTriggers;
 import org.wpilib.framework.OpModeRobot;
 
 /**
- * Owns the robot's shared hardware in one place. With the OpMode framework there is no {@code
- * RobotContainer}: the subsystems live here as public fields, and each OpMode in {@code
- * frc.robot.opmodes} reaches them through the {@link Robot} reference it is constructed with.
+ * The main robot class. The robot's mechanisms live here as public fields. Every OpMode gets a
+ * {@link Robot} in its constructor and reaches the mechanisms through it.
  *
- * <p>The framework auto-discovers the {@code @Teleop}/{@code @Autonomous} classes in this package
- * (and subpackages) and handles every mode transition, so this class has no per-mode init/periodic
- * methods - only the always-on scheduler tick. Selecting a different mode on the driver station
- * constructs that OpMode and tears down the previous one (its button bindings are scoped to it and
- * removed automatically).
+ * <p>The framework finds the {@code @Teleop} and {@code @Autonomous} classes in {@code
+ * frc.robot.opmodes} on its own and handles every mode switch, so this class has no per-mode
+ * methods. It owns the drivetrain and runs the command scheduler every loop.
  */
 public class Robot extends OpModeRobot {
   public final DriveMechanism drivetrain = new DriveMechanism();
 
   public Robot() {
-    // Brake while disabled, in every mode. Created here (before any OpMode is selected) so the
-    // binding is global; the opmodes' bindings are scoped to their OpMode and removed on a switch.
+    // Brake while disabled, in every mode. This binding is made here instead of in an OpMode so
+    // it always exists. OpMode bindings go away on a mode switch; this one never does.
     final var idle = new SwerveRequest.Idle();
     RobotModeTriggers.disabled().whileTrue(drivetrain.applyRequest(() -> idle));
   }
 
   @Override
   public void simulationInit() {
-    // Headless auto-enable for agent / CI runs. No-op unless -Dfrc.sim.startMode is set (the
-    // simulateJavaAgent Gradle task sets it). See SimStartup and the run-sim skill.
+    // Lets simulation start enabled when a launcher asks for it. Does nothing in a normal run.
+    // See SimStartup for details.
     SimStartup.arm();
   }
 
