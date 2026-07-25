@@ -19,7 +19,8 @@ open the pull request between its branch and the branch before it.
 | `3-PID` | Closed-loop PID position/velocity control |
 | `4-MotionMagic` | Motion Magic motion profiles |
 | `5-GettersAndSetters` | Getters and `isAtTarget` checking |
-| `6-StateBased` | State-based control with the Commands v3 `StateMachine` |
+| `6-Coroutines` | Autonomous routines with coroutines — `fork` / `await` |
+| `7-StateBased` | State-based control with the Commands v3 `StateMachine` |
 
 ## Swerve track
 
@@ -31,6 +32,7 @@ open the pull request between its branch and the branch before it.
 | `4-DynamicFlywheel` | Vision-based shooting |
 | `5-DriveToPoint` | Drive to a field point |
 | `6-ProfiledToPoint` | Drive to point with profiled PID |
+| `7-InlineCommands` | The inline command style — drive to an AprilTag |
 
 ## Getting started
 
