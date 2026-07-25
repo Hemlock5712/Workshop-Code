@@ -12,6 +12,7 @@ import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 import frc.robot.Robot;
 import frc.robot.commands.DriveToPoint;
+import frc.robot.commands.DriveToTagInline;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.DriveMechanism;
 import org.wpilib.command3.button.CommandNiDsXboxController;
@@ -65,5 +66,8 @@ public class TeleopOpMode extends PeriodicOpMode {
     driver
         .b()
         .whileTrue(new DriveToPoint(drivetrain, new Pose2d(3, 2, Rotation2d.fromDegrees(180))));
+
+    // Hold X to drive a metre in front of a tag, camera only. TODO: use a real tag ID.
+    driver.x().whileTrue(DriveToTagInline.create(drivetrain, "limelight", 1, 1.0));
   }
 }
