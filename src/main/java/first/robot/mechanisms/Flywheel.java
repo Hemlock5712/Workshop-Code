@@ -14,7 +14,6 @@ import com.ctre.phoenix6.configs.MotorOutputConfigs;
 import com.ctre.phoenix6.configs.Slot0Configs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.MotionMagicVelocityVoltage;
-import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
@@ -25,17 +24,21 @@ import org.wpilib.command3.Mechanism;
  * The flywheel. One TalonFX motor (CAN 21). No CANcoder: the encoder inside the motor already
  * measures speed.
  *
- * <p>Same idea as {@link Arm}. The flywheel offers commands now. The commands still push plain
- * voltage. The next lesson switches to real velocity control.
+ * <p>New in this lesson: the flywheel goes closed loop, with <b>Motion Magic</b> velocity control
+ * ({@link MotionMagicVelocityVoltage}). A command names a speed in rotations per second and the
+ * motor's PID holds it even as game pieces slow the wheel down.
+ *
+ * <p>Its gains come out of Tuner X the same way the arm's do.
  */
 public class Flywheel extends Mechanism {
   private final CANBus canivore = new CANBus("canivore");
   private final TalonFX motor = new TalonFX(21, canivore);
 
-  // Pushes a set voltage at the motor. No sensors involved.
-  private final VoltageOut voltageOut = new VoltageOut(0);
+  // Asks the motor to ramp to a target speed instead of jumping to it.
+  private final MotionMagicVelocityVoltage velocityOut = new MotionMagicVelocityVoltage(0);
 
   public Flywheel() {
+    // Pasted from Tuner X. Every gain is 0.0 until you paste yours over it.
     final TalonFXConfiguration talonFXCfg =
         new TalonFXConfiguration()
             .withMotorOutput(
@@ -43,8 +46,11 @@ public class Flywheel extends Mechanism {
                     .withNeutralMode(NeutralModeValue.Coast) // easy to spin by hand
                     // positive shoots: clockwise from the motor side
                     .withInverted(InvertedValue.Clockwise_Positive))
+            .withSlot0(new Slot0Configs().withKS(0.0).withKV(0.125).withKP(0.0))
             .withMotionMagic(
                 new MotionMagicConfigs()
+                    .withMotionMagicCruiseVelocity(RotationsPerSecond.of(100.0))
+                    .withMotionMagicAcceleration(RotationsPerSecondPerSecond.of(1000.0))
                     .withMotionMagicExpo_kV(
                         Volts.per(RotationsPerSecond).ofNative(0.119999997317791))
                     .withMotionMagicExpo_kA(
@@ -56,14 +62,14 @@ public class Flywheel extends Mechanism {
   // Same setup as Arm. runRepeatedly runs the action every loop while the command
   // is scheduled. Every one of these is a hold: it never finishes on its own.
 
-  /** Spin the flywheel at 3 volts and hold it there. Never finishes. */
+  /** Spin the flywheel at 25 rotations per second and hold it. Never finishes. */
   public Command runSlow() {
-    return runRepeatedly(() -> setVoltage(3.0)).named("runSlow (hold)");
+    return runRepeatedly(() -> setVelocity(25.0)).named("runSlow (hold)");
   }
 
-  /** Spin the flywheel at 6 volts and hold it there. Never finishes. */
+  /** Spin the flywheel at 75 rotations per second and hold it. Never finishes. */
   public Command runFast() {
-    return runRepeatedly(() -> setVoltage(6.0)).named("runFast (hold)");
+    return runRepeatedly(() -> setVelocity(75.0)).named("runFast (hold)");
   }
 
   /** Stop the flywheel and keep it stopped. Never finishes. */
@@ -71,8 +77,8 @@ public class Flywheel extends Mechanism {
     return runRepeatedly(this::stopMotor).named("stop (hold)");
   }
 
-  private void setVoltage(double voltage) {
-    motor.setControl(voltageOut.withOutput(voltage));
+  private void setVelocity(double rps) {
+    motor.setControl(velocityOut.withVelocity(RotationsPerSecond.of(rps)));
   }
 
   /** Stop the motor. */
