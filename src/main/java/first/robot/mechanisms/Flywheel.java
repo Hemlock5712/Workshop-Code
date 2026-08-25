@@ -16,14 +16,18 @@ import com.ctre.phoenix6.signals.MotorAlignmentValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import org.wpilib.command3.Command;
 import org.wpilib.command3.Mechanism;
+import org.wpilib.units.measure.AngularVelocity;
 
 /**
  * The flywheel. Two TalonFX motors: a leader (CAN 21) and a follower (CAN 22) that spins the
  * opposite direction.
  *
- * <p>New in this lesson: <b>Motion Magic</b> velocity control ({@link MotionMagicVelocityVoltage}).
- * Same gains as mech-3-PID, but the speed now ramps up to the target along an acceleration limit instead
- * of jumping straight to it.
+ * <p>The motor uses Motion Magic velocity control ({@link MotionMagicVelocityVoltage}), added in
+ * mech-4-MotionMagic: the speed ramps up to the target instead of jumping straight to it.
+ *
+ * <p>New in this lesson (mech-5-ReadingState): the <b>read side</b>. {@link #getVelocity} tells you
+ * how fast the wheel is really spinning, {@link #getTargetVelocity} tells you the speed it is
+ * aiming for, and {@link #isAtTarget} tells you whether it is up to speed.
  */
 public class Flywheel extends Mechanism {
   // Shooting speeds (rotations per second).
@@ -39,12 +43,17 @@ public class Flywheel extends Mechanism {
   private static final double MOTION_MAGIC_CRUISE_VELOCITY = 100.0; // top speed (rot/s)
   private static final double MOTION_MAGIC_ACCELERATION = 1000.0; // ramp rate (rot/s²)
 
+  // How close the measured speed needs to be to count as "at target".
+  private static final double VELOCITY_TOLERANCE_RPS = 0.5;
+
   private final CANBus canivore = new CANBus("canivore");
   private final TalonFX leader = new TalonFX(21, canivore);
   private final TalonFX follower = new TalonFX(22, canivore);
 
   // Asks the motor to ramp to a target speed instead of jumping to it.
   private final MotionMagicVelocityVoltage velocityOut = new MotionMagicVelocityVoltage(0);
+
+  private final AngularVelocity tolerance = RotationsPerSecond.of(VELOCITY_TOLERANCE_RPS);
 
   public Flywheel() {
     // The follower copies the leader, spinning the opposite direction.
@@ -64,8 +73,8 @@ public class Flywheel extends Mechanism {
 
   // Same setup as Arm. runRepeatedly runs the action every loop while the command is scheduled.
   // These commands are all holds. A hold never finishes, so never make a sequence wait on one.
-  // Need an ending? Add it where you use the command: flywheel.runFast().until(someCondition).
-  // The full rule is in Arm.java.
+  // Need an ending? Add it where you use the command:
+  // flywheel.runFast().until(flywheel::isAtTarget). The full rule is in Arm.java.
 
   /** Spin the flywheel at the slow speed and hold it. Never finishes. */
   public Command runSlow() {
@@ -80,6 +89,21 @@ public class Flywheel extends Mechanism {
   /** Stop the flywheel and keep it stopped. Never finishes. */
   public Command stop() {
     return runRepeatedly(leader::stopMotor).named("stop (hold)");
+  }
+
+  /** True when the flywheel is within tolerance of its target speed. */
+  public boolean isAtTarget() {
+    return getVelocity().isNear(getTargetVelocity(), tolerance);
+  }
+
+  /** Current measured flywheel speed. */
+  public AngularVelocity getVelocity() {
+    return leader.getVelocity().getValue();
+  }
+
+  /** Speed the flywheel is currently driving toward. */
+  public AngularVelocity getTargetVelocity() {
+    return velocityOut.getVelocityMeasure();
   }
 
   private void setVelocity(double rps) {

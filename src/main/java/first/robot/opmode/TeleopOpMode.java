@@ -7,6 +7,7 @@ package first.robot.opmode;
 import first.robot.Robot;
 import first.robot.mechanisms.Arm;
 import first.robot.mechanisms.Flywheel;
+import org.wpilib.command3.Command;
 import org.wpilib.command3.button.CommandNiDsXboxController;
 import org.wpilib.opmode.PeriodicOpMode;
 import org.wpilib.opmode.Teleop;
@@ -16,7 +17,8 @@ import org.wpilib.opmode.Teleop;
  * station. The button bindings made in the constructor belong to this OpMode, and the framework
  * removes them on a mode switch. No cleanup code needed.
  *
- * <p>The buttons here run the arm and flywheel PID commands.
+ * <p>The buttons here run the arm and flywheel PID commands. New in this lesson: the Y button
+ * builds a sequence that waits for the arm to really arrive before spinning up the flywheel.
  */
 @Teleop(name = "Teleop")
 public class TeleopOpMode extends PeriodicOpMode {
@@ -34,5 +36,25 @@ public class TeleopOpMode extends PeriodicOpMode {
 
     // A: spin fast while held, stop when released.
     driver.a().onTrue(flywheel.runFast()).onFalse(flywheel.stop());
+
+    // Y: raise the arm, wait until it really reaches the target, then spin the flywheel fast.
+    // Without isAtTarget there is no way to know when "then" is.
+    //
+    // vertical() is a hold, so it never finishes. Dropped straight into Command.sequence it would
+    // stick there forever. .until(arm::isAtTarget) gives the hold an ending right here. Do not
+    // add a special "AndWait" method to the mechanism. In an auto, also add .withTimeout(seconds)
+    // as a time limit. If the arm never quite arrives, the routine moves on instead of getting
+    // stuck for the rest of the period.
+    //
+    // The last step (runFast) is still a hold, so the whole sequence is a hold too. That is why
+    // its name ends in "(hold)" and why we use whileTrue: releasing Y cancels it.
+    driver
+        .y()
+        .whileTrue(
+            Command.sequence(
+                    arm.vertical().until(arm::isAtTarget).named("vertical until at target"),
+                    flywheel.runFast())
+                .named("Spin Up When Ready (hold)"))
+        .whileFalse(flywheel.stop());
   }
 }
