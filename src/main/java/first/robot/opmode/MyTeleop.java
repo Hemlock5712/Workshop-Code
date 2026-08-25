@@ -4,41 +4,30 @@
 
 package first.robot.opmode;
 
+import first.robot.Robot;
+import org.wpilib.command3.button.CommandNiDsXboxController;
 import org.wpilib.opmode.PeriodicOpMode;
 import org.wpilib.opmode.Teleop;
-import first.robot.Robot;
 
-@Teleop
+/**
+ * The driver's controls. The framework builds this class when "Teleop" is picked on the driver
+ * station. The button bindings made in the constructor belong to this OpMode, and the framework
+ * removes them on a mode switch. No cleanup code needed.
+ *
+ * <p>The buttons here run the arm and flywheel commands.
+ */
+@Teleop(name = "Teleop")
 public class MyTeleop extends PeriodicOpMode {
-  private final Robot robot;
+  private final CommandNiDsXboxController driver = new CommandNiDsXboxController(0);
 
-  /** The Robot instance is passed into the opmode via the constructor. */
   public MyTeleop(Robot robot) {
-    this.robot = robot;
-  }
+    // Left trigger: push the arm up while held, stop when released.
+    driver.leftTrigger().whileTrue(robot.arm.runFast()).whileFalse(robot.arm.stop());
 
-  @Override
-  public void disabledPeriodic() {
-    /* Called periodically (on every DS packet) while the robot is disabled. */
-  }
+    // Right trigger: spin fast while held, drop back to the slow voltage when released.
+    driver.rightTrigger().whileTrue(robot.flywheel.runFast()).whileFalse(robot.flywheel.runSlow());
 
-  @Override
-  public void start() {
-    /* Called once when the robot is enabled. */
-  }
-
-  @Override
-  public void periodic() {
-    /* Called periodically (set time interval) while the robot is enabled. */
-  }
-
-  @Override
-  public void end() {
-    /* Called when the robot is disabled (after previously being enabled). */
-  }
-
-  @Override
-  public void close() {
-    /* Called when the opmode is de-selected / no additional methods will be called. */
+    // A: spin fast while held, stop when released.
+    driver.a().whileTrue(robot.flywheel.runFast()).whileFalse(robot.flywheel.stop());
   }
 }

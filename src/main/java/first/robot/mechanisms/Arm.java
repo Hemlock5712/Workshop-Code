@@ -22,16 +22,18 @@ import com.ctre.phoenix6.signals.FeedbackSensorSourceValue;
 import com.ctre.phoenix6.signals.GravityTypeValue;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
+import org.wpilib.command3.Command;
 import org.wpilib.command3.Mechanism;
 
 /**
  * The arm. One TalonFX motor plus a CANcoder that measures the arm's angle.
  *
- * <p>Every mechanism in this project follows the same pattern: extend {@code Mechanism}, keep the
- * hardware in private fields, and set it up once in the constructor.
+ * <p>New in this lesson: the arm offers <b>commands</b> (each method returns a
+ * {@link Command}). Anything that wants to move the arm goes through
+ * a command. That is how the scheduler keeps two things from fighting over the motor.
  *
- * <p>Right now the arm can only do one thing: push a voltage at the motor. Both methods are
- * private and nothing calls them yet. Commands arrive in mech-2-Commands.
+ * <p>The commands still just push a voltage, so where the arm ends up depends on gravity and
+ * friction. The next lesson makes the motor aim for a real target instead.
  */
 public class Arm extends Mechanism {
   private final CANBus canivore = new CANBus("canivore");
@@ -62,11 +64,24 @@ public class Arm extends Mechanism {
     motor.getConfigurator().apply(talonFXCfg);
   }
 
-  /**
-   * Push the arm with a fixed voltage. Positive voltage moves the arm counter-clockwise.
-   *
-   * @param voltage The voltage to apply.
-   */
+  // Each command uses runRepeatedly, which runs its action every loop while the
+  // command is scheduled. Every one of them is a hold: it never finishes on its own.
+
+  /** Push the arm at 3 volts and keep pushing. Never finishes. */
+  public Command runSlow() {
+    return runRepeatedly(() -> setVoltage(3.0)).named("runSlow (hold)");
+  }
+
+  /** Push the arm at 6 volts and keep pushing. Never finishes. */
+  public Command runFast() {
+    return runRepeatedly(() -> setVoltage(6.0)).named("runFast (hold)");
+  }
+
+  /** Stop the arm motor and keep it stopped. Never finishes. */
+  public Command stop() {
+    return runRepeatedly(this::stopMotor).named("stop (hold)");
+  }
+
   private void setVoltage(double voltage) {
     motor.setControl(voltageOut.withOutput(voltage));
   }

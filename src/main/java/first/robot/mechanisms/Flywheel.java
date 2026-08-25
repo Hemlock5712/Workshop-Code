@@ -18,14 +18,15 @@ import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
+import org.wpilib.command3.Command;
 import org.wpilib.command3.Mechanism;
 
 /**
  * The flywheel. One TalonFX motor (CAN 21). No CANcoder: the encoder inside the motor already
  * measures speed.
  *
- * <p>Same pattern as {@link Arm}: extend {@code Mechanism}, keep the hardware in private fields,
- * set it up once in the constructor. For now it can only push a voltage at the motor.
+ * <p>Same idea as {@link Arm}. The flywheel offers commands now. The commands still push plain
+ * voltage. The next lesson switches to real velocity control.
  */
 public class Flywheel extends Mechanism {
   private final CANBus canivore = new CANBus("canivore");
@@ -52,11 +53,24 @@ public class Flywheel extends Mechanism {
     motor.getConfigurator().apply(talonFXCfg);
   }
 
-  /**
-   * Spin the flywheel with a fixed voltage.
-   *
-   * @param voltage The voltage to apply.
-   */
+  // Same setup as Arm. runRepeatedly runs the action every loop while the command
+  // is scheduled. Every one of these is a hold: it never finishes on its own.
+
+  /** Spin the flywheel at 3 volts and hold it there. Never finishes. */
+  public Command runSlow() {
+    return runRepeatedly(() -> setVoltage(3.0)).named("runSlow (hold)");
+  }
+
+  /** Spin the flywheel at 6 volts and hold it there. Never finishes. */
+  public Command runFast() {
+    return runRepeatedly(() -> setVoltage(6.0)).named("runFast (hold)");
+  }
+
+  /** Stop the flywheel and keep it stopped. Never finishes. */
+  public Command stop() {
+    return runRepeatedly(this::stopMotor).named("stop (hold)");
+  }
+
   private void setVoltage(double voltage) {
     motor.setControl(voltageOut.withOutput(voltage));
   }
