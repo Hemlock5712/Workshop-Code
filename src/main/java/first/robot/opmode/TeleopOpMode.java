@@ -16,7 +16,7 @@ import org.wpilib.opmode.Teleop;
  * station. The button bindings made in the constructor belong to this OpMode, and the framework
  * removes them on a mode switch. No cleanup code needed.
  *
- * <p>The buttons here run the arm and flywheel commands.
+ * <p>The buttons here run the arm and flywheel PID commands.
  */
 @Teleop(name = "Teleop")
 public class TeleopOpMode extends PeriodicOpMode {
@@ -26,10 +26,10 @@ public class TeleopOpMode extends PeriodicOpMode {
     final Arm arm = robot.arm;
     final Flywheel flywheel = robot.flywheel;
 
-    // Left trigger: push the arm up while held, stop when released.
-    driver.leftTrigger().onTrue(arm.runFast()).onFalse(arm.stop());
+    // Hold the left trigger to drive the arm to its vertical position (and hold it there).
+    driver.leftTrigger().onTrue(arm.vertical());
 
-    // Right trigger: spin fast while held, drop back to the slow voltage when released.
+    // Right trigger: spin fast while held, drop back to the slow hold speed when released.
     driver.rightTrigger().onTrue(flywheel.runFast()).onFalse(flywheel.runSlow());
 
     // A: spin fast while held, stop when released.
