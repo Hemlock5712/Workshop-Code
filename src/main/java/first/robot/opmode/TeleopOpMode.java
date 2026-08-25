@@ -8,53 +8,105 @@ import first.robot.Robot;
 import first.robot.mechanisms.Arm;
 import first.robot.mechanisms.Flywheel;
 import org.wpilib.command3.Command;
+import org.wpilib.command3.Scheduler;
+import org.wpilib.command3.StateMachine;
+import org.wpilib.command3.StateMachine.State;
 import org.wpilib.command3.button.CommandNiDsXboxController;
 import org.wpilib.opmode.PeriodicOpMode;
 import org.wpilib.opmode.Teleop;
+import org.wpilib.system.DataLogManager;
 
 /**
- * The driver's controls. The framework builds this class when "Teleop" is picked on the driver
- * station. The button bindings made in the constructor belong to this OpMode, and the framework
- * removes them on a mode switch. No cleanup code needed.
+ * State-based teleop. The state machine lesson at <a
+ * href="https://frc5712.com/state-based">frc5712.com/state-based</a>, as real code.
  *
- * <p>The buttons here run the arm and flywheel PID commands. New in this lesson: the Y button
- * builds a sequence that waits for the arm to really arrive before spinning up the flywheel.
+ * <p>In the last lesson, each button started and stopped its own commands. Here the robot is always
+ * in exactly one named state, either stowed, pickup, spin-up or ready, and the buttons move it
+ * between states. Each state owns one command. The {@link StateMachine} cancels the old state's
+ * command and starts the new one for you, and the robot can never jump to a state you did not
+ * connect with a transition.
+ *
+ * <p>Building one takes four steps, numbered in the constructor below: build the machine, add
+ * states, pick the starting state, and wire the transitions.
  */
 @Teleop(name = "Teleop")
 public class TeleopOpMode extends PeriodicOpMode {
   private final CommandNiDsXboxController driver = new CommandNiDsXboxController(0);
+  private final Command machine;
 
   public TeleopOpMode(Robot robot) {
     final Arm arm = robot.arm;
     final Flywheel flywheel = robot.flywheel;
 
-    // Hold the left trigger to drive the arm to its vertical position (and hold it there).
-    driver.leftTrigger().onTrue(arm.vertical());
+    // 1. Build the machine. The name is required and shows up in telemetry.
+    StateMachine sm = new StateMachine("Superstructure");
 
-    // Right trigger: spin fast while held, drop back to the slow hold speed when released.
-    driver.rightTrigger().onTrue(flywheel.runFast()).onFalse(flywheel.runSlow());
+    // 2. Add states. Each state owns one command. parallel(...) turns two commands into one, so
+    //    each state poses the whole robot. The poses are holds that never finish, which is fine
+    //    because the machine cancels the old state's command when it switches. SpinUp is the
+    //    exception: .until(...) gives its command an ending, so it can use whenComplete() below.
+    State stowed =
+        sm.addState(Command.parallel(arm.vertical(), flywheel.stop()).named("Stowed (hold)"));
+    State pickup =
+        sm.addState(Command.parallel(arm.horizontal(), flywheel.stop()).named("Pickup (hold)"));
+    State spinUp =
+        sm.addState(
+            Command.parallel(arm.vertical(), flywheel.runFast())
+                .until(flywheel::isAtTarget)
+                .named("SpinUp until at speed"));
+    State ready =
+        sm.addState(
+            Command.parallel(arm.vertical(), flywheel.runFast()).named("ReadyToShoot (hold)"));
 
-    // A: spin fast while held, stop when released.
-    driver.a().onTrue(flywheel.runFast()).onFalse(flywheel.stop());
+    // 3. Every machine needs a starting state. Forget this and the build fails.
+    sm.setInitialState(stowed);
 
-    // Y: raise the arm, wait until it really reaches the target, then spin the flywheel fast.
-    // Without isAtTarget there is no way to know when "then" is.
+    // 4. Wire the transitions. Each condition is checked every loop while its state is active,
+    //    and fires the moment it flips from false to true.
+    stowed.switchTo(pickup).when(driver.leftTrigger()); // driver asks to intake
+    pickup.switchTo(stowed).when(driver.leftTrigger().negate()); // trigger released, pack up
+
+    stowed.switchTo(spinUp).when(driver.rightTrigger()); // driver asks to shoot
+
+    // SpinUp's command ends on its own, so this uses whenComplete(): it fires once, when the
+    // command finishes. Ready runs the same pose as SpinUp. It exists so drivers, LEDs and
+    // autos can tell "spinning up" apart from "ready to shoot".
+    spinUp.switchTo(ready).whenComplete();
+
+    // Releasing the right trigger backs out of either shooting state.
+    sm.switchFromAny(spinUp, ready).to(stowed).when(driver.rightTrigger().negate());
+
+    // B returns to stowed from every state.
+    // switchFromAny() with no args covers every state added so far, so declare it last.
+    sm.switchFromAny().to(stowed).when(driver.b());
+
+    // onEnter/onExit run small extras on the way in and out of a state, without touching the
+    // state's command. These two write markers into the log, so you can see exactly when the
+    // machine entered and left ReadyToShoot.
+    ready.onEnter(() -> DataLogManager.log("Superstructure: entered ReadyToShoot"));
+    ready.onExit(() -> DataLogManager.log("Superstructure: left ReadyToShoot"));
+
+    // Three more forms. Uncomment and adapt:
     //
-    // vertical() is a hold, so it never finishes. Dropped straight into Command.sequence it would
-    // stick there forever. .until(arm::isAtTarget) gives the hold an ending right here. Do not
-    // add a special "AndWait" method to the mechanism. In an auto, also add .withTimeout(seconds)
-    // as a time limit. If the arm never quite arrives, the routine moves on instead of getting
-    // stuck for the rest of the period.
+    // whenCompleteAnd is whenComplete plus an extra check. It wins over plain whenComplete().
+    //   spinUp.switchTo(stowed).whenCompleteAnd(() -> !hasGamePiece()); // lost the piece, bail
     //
-    // The last step (runFast) is still a hold, so the whole sequence is a hold too. That is why
-    // its name ends in "(hold)" and why we use whileTrue: releasing Y cancels it.
-    driver
-        .y()
-        .whileTrue(
-            Command.sequence(
-                    arm.vertical().until(arm::isAtTarget).named("vertical until at target"),
-                    flywheel.runFast())
-                .named("Spin Up When Ready (hold)"))
-        .whileFalse(flywheel.stop());
+    // The target state can be picked at switch time (a Supplier<State> instead of a State):
+    //   spinUp.switchTo(() -> hasGamePiece() ? ready : stowed).whenComplete();
+    //
+    // A transition can also end the whole machine instead of moving to another state:
+    //   sm.switchFromAny().toExitStateMachine().when(driver.back());
+
+    machine = sm; // a StateMachine is a Command, so schedule it like any other
+  }
+
+  @Override
+  public void start() {
+    Scheduler.getDefault().schedule(machine);
+  }
+
+  @Override
+  public void end() {
+    Scheduler.getDefault().cancel(machine);
   }
 }
