@@ -11,19 +11,24 @@ import com.ctre.phoenix6.hardware.CANcoder;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
+import org.wpilib.command3.Command;
 import org.wpilib.command3.Mechanism;
 
 /**
  * The arm. One TalonFX motor plus a CANcoder that measures the arm's angle.
  *
- * <p>Every mechanism in this project follows the same pattern: extend {@code Mechanism}, keep the
- * hardware in private fields, and set it up once in the constructor.
+ * <p>New in this lesson: the raw setter is now {@code private}, and the arm offers <b>commands</b>
+ * instead (each method returns a {@link Command}). Anything that wants to move the arm goes through
+ * a command. That is how the scheduler keeps two things from fighting over the motor.
  *
- * <p>Right now the arm can only do one thing: push a voltage at the motor. The methods are public
- * so you can call them and watch the arm move. In the next lesson (mech-2-Commands) we wrap them in
- * commands.
+ * <p>The commands still just push a voltage, so where the arm ends up depends on gravity and
+ * friction. In the next lesson (mech-3-PID) we make the motor aim for a real target instead.
  */
 public class Arm extends Mechanism {
+  // Voltages for the two example commands.
+  private static final double SLOW_VOLTAGE = 3.0;
+  private static final double FAST_VOLTAGE = 6.0;
+
   private final CANBus canivore = new CANBus("canivore");
   private final TalonFX motor = new TalonFX(31, canivore);
   private final CANcoder encoder = new CANcoder(32, canivore);
@@ -42,17 +47,34 @@ public class Arm extends Mechanism {
     motor.getConfigurator().apply(config);
   }
 
-  /**
-   * Push the arm with a fixed voltage. Positive voltage moves the arm counter-clockwise.
-   *
-   * @param voltage The voltage to apply.
-   */
-  public void setVoltage(double voltage) {
-    motor.setControl(voltageOut.withOutput(voltage));
+  // Each command below uses runRepeatedly, which runs its action every loop while the command is
+  // scheduled. Re-sending the request every loop also restores it if a motor controller reboots.
+  //
+  // One rule: these commands are all holds. A hold never finishes, so never make anything
+  // wait for a hold. A hold inside Command.sequence sticks there forever. If a step needs an
+  // ending, add one where you use the command instead of writing a new method here:
+  //
+  //   arm.runSlow().until(someCondition)   // ends when the condition turns true
+  //
+  // Every hold has "(hold)" in its name. Names show up on the dashboard and in logs, so if a
+  // stuck sequence is sitting on a "(hold)", you found the bug.
+
+  /** Push the arm with a gentle voltage and keep pushing. Never finishes. See the rule above. */
+  public Command runSlow() {
+    return runRepeatedly(() -> setVoltage(SLOW_VOLTAGE)).named("runSlow (hold)");
   }
 
-  /** Stop the arm motor. */
-  public void stop() {
-    motor.stopMotor();
+  /** Push the arm with a stronger voltage and keep pushing. Never finishes. */
+  public Command runFast() {
+    return runRepeatedly(() -> setVoltage(FAST_VOLTAGE)).named("runFast (hold)");
+  }
+
+  /** Stop the arm motor and keep it stopped. Never finishes. */
+  public Command stop() {
+    return runRepeatedly(motor::stopMotor).named("stop (hold)");
+  }
+
+  private void setVoltage(double voltage) {
+    motor.setControl(voltageOut.withOutput(voltage));
   }
 }
