@@ -19,16 +19,18 @@ import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import org.wpilib.command3.Command;
 import org.wpilib.command3.Mechanism;
+import org.wpilib.units.measure.AngularVelocity;
 
 /**
  * The flywheel. One TalonFX motor (CAN 21). No CANcoder: the encoder inside the motor already
  * measures speed.
  *
- * <p>New in this lesson: the flywheel goes closed loop, with <b>Motion Magic</b> velocity control
- * ({@link MotionMagicVelocityVoltage}). A command names a speed in rotations per second and the
- * motor's PID holds it even as game pieces slow the wheel down.
+ * <p>The motor uses Motion Magic velocity control ({@link MotionMagicVelocityVoltage}), added one
+ * lesson back. The speed ramps up to the target instead of jumping straight to it.
  *
- * <p>Its gains come out of Tuner X the same way the arm's do.
+ * <p>New in this lesson (mech-4-ReadingState): the <b>read side</b>. {@link #getVelocity} tells you
+ * how fast the wheel is really spinning, {@link #getTargetVelocity} tells you the speed it is
+ * aiming for, and {@link #isAtTarget} tells you whether it is up to speed.
  */
 public class Flywheel extends Mechanism {
   private final CANBus canivore = new CANBus("canivore");
@@ -36,6 +38,9 @@ public class Flywheel extends Mechanism {
 
   // Asks the motor to ramp to a target speed instead of jumping to it.
   private final MotionMagicVelocityVoltage velocityOut = new MotionMagicVelocityVoltage(0);
+
+  // How close the measured speed needs to be to count as "at target".
+  private final AngularVelocity tolerance = RotationsPerSecond.of(0.5);
 
   public Flywheel() {
     // Pasted from Tuner X. Every gain is 0.0 until you paste yours over it.
@@ -75,6 +80,21 @@ public class Flywheel extends Mechanism {
   /** Stop the flywheel and keep it stopped. Never finishes. */
   public Command stop() {
     return runRepeatedly(this::stopMotor).named("stop (hold)");
+  }
+
+  /** True when the flywheel is within tolerance of its target speed. */
+  public boolean isAtTarget() {
+    return getVelocity().isNear(getTargetVelocity(), tolerance);
+  }
+
+  /** Current measured flywheel speed. */
+  public AngularVelocity getVelocity() {
+    return motor.getVelocity().getValue();
+  }
+
+  /** Speed the flywheel is currently driving toward. */
+  public AngularVelocity getTargetVelocity() {
+    return velocityOut.getVelocityMeasure();
   }
 
   private void setVelocity(double rps) {
