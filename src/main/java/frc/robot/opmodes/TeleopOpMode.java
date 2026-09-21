@@ -56,5 +56,8 @@ public class TeleopOpMode extends PeriodicOpMode {
 
     // Left bumper: make the robot's current facing the new "forward".
     driver.leftBumper().onTrue(drivetrain.seedFieldCentric());
+
+    // Hold A: spin the flywheel at the speed picked from the live distance to the goal.
+    driver.a().whileTrue(robot.flywheel.distanceShoot());
   }
 }
