@@ -1,14 +1,16 @@
-// WPILib 2027 is in ALPHA - pinned to alpha-6 on purpose. The OpMode/Commands-v3 APIs are still
+// WPILib 2027 is in ALPHA - pinned to alpha-7 on purpose. The OpMode/Commands-v3 APIs are still
 // moving; do NOT bump this casually. Known-volatile APIs to re-check when updating:
 //   - org.wpilib.opmode "Test" mode was renamed to @Utility (done, in use here)
 //   - UserControls / @UserControlsInstance was REMOVED upstream - do not adopt it (we don't)
 //   - the command-based authoring shape (CommandOpMode/CommandRobot) is still an open proposal
+//   - RobotBase.startRobot takes a Supplier, not a Class (alpha-7)
+//   - Mechanism is an interface, not a base class (alpha-7)
 // See ONBOARDING.md for the OpMode wiring model.
 plugins {
     id "java"
-    id "org.wpilib.GradleRIO" version "2027.0.0-alpha-6"
-    id "com.gradleup.shadow" version "9.3.0"
-    id "com.diffplug.spotless" version "7.0.2"
+    id "application"
+    id "org.wpilib.GradleRIO" version "2027.0.0-alpha-7"
+    id "com.diffplug.spotless" version "8.9.0"
 }
 
 java {
@@ -38,6 +40,8 @@ deploy {
                 // getTargetTypeClass is a shortcut to get the class type using a string
 
                 wpilibJava(getArtifactTypeClass('WPILibJavaArtifact')) {
+                    // Set to true to use debug including JNI, which will drastically impact performance.
+                    debugJni = false
                 }
 
                 // Static files artifact
@@ -54,9 +58,8 @@ deploy {
 
 def deployArtifact = deploy.targets.systemcore.artifacts.wpilibJava
 
-// Set to true to use debug for all targets including JNI, which will drastically impact
-// performance.
-wpi.java.debugJni = false
+// Set to true to use debug for simulation including JNI
+wpi.java.runSimWithDebugJni = false
 
 // Set this to true to enable desktop support.
 def includeDesktopSupport = true
@@ -125,40 +128,45 @@ tasks.register('simulateJavaAgent') {
     dependsOn 'simulateJava'
 }
 
-// Setting up my Jar File. In this case, adding all libraries into the main jar ('fat/shaded jar')
-// in order to make them all available at runtime and merging service files to make JSON work.
-// Also adding the manifest so WPILib knows where to look for our Robot Class.
-shadowJar {
-    mergeServiceFiles()
+application.mainClass = ROBOT_MAIN_CLASS
+
+deployArtifact.configureApplication(application)
+wpi.java.configureApplication(application)
+wpi.java.configureTestTasks(test)
+
+jar {
     from('src') { into 'backup/src' }
     from('vendordeps') { into 'backup/vendordeps' }
     from('build.gradle') { into 'backup' }
-    manifest org.wpilib.gradlerio.GradleRIOPlugin.javaManifest(ROBOT_MAIN_CLASS)
-    duplicatesStrategy = DuplicatesStrategy.INCLUDE
 }
-
-// Configure jar and deploy tasks
-deployArtifact.jarTask = shadowJar
-wpi.java.configureExecutableTasks(shadowJar)
-wpi.java.configureTestTasks(test)
 
 // Configure string concat to always inline compile
 tasks.withType(JavaCompile) {
     options.compilerArgs.add '-XDstringConcat=inline'
 }
 
-// Code formatting. Uses Google Java Format, the same formatter WPILib uses
-// internally and the one the WPILib VS Code extension applies on save.
+// Code formatting. Google Java Format, the same formatter WPILib uses internally
+// and the one the WPILib VS Code extension applies on save.
+//   ./gradlew spotlessApply   fix formatting
+//   ./gradlew spotlessCheck   report only
 spotless {
+    // Leave line endings exactly as they are on disk, so the formatter behaves the
+    // same whether git checked the file out on Windows, macOS or Linux.
+    lineEndings = 'PRESERVE'
+
     java {
+        // Our own code only. Vendor drops (LimelightHelpers) and Tuner X output
+        // (generated/) stay as they ship, so re-downloading or regenerating them
+        // never shows up as a formatting diff.
         target fileTree('.') {
-            include '**/*.java'
-            exclude '**/build/**', '**/build-*/**'
+            include 'src/**/*.java'
+            exclude '**/build/**', '**/bin/**',
+                    '**/LimelightHelpers.java',
+                    '**/generated/**'
         }
         toggleOffOn()
-        // Pin a google-java-format new enough for the JDK 25 toolchain. Spotless's default GJF
-        // version calls javac internals (Log$DeferredDiagnosticHandler.getDiagnostics()) that
-        // changed in recent JDKs, so on JDK 25 it dies with NoSuchMethodError. 1.35.0+ supports it.
+        // Pin a google-java-format new enough for the JDK 25 toolchain. Older versions
+        // call javac internals that changed in recent JDKs and die with NoSuchMethodError.
         googleJavaFormat('1.35.0')
         removeUnusedImports()
         trimTrailingWhitespace()

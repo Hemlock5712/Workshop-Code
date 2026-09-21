@@ -62,7 +62,7 @@ public class TeleopOpMode extends PeriodicOpMode {
     driver.leftBumper().onTrue(drivetrain.seedFieldCentric());
 
     // Hold A or B to drive straight to a fixed spot on the field. Let go to stop.
-    driver.a().whileTrue(new DriveToPoint(drivetrain, Pose2d.kZero));
+    driver.a().whileTrue(new DriveToPoint(drivetrain, Pose2d.ZERO));
     driver
         .b()
         .whileTrue(new DriveToPoint(drivetrain, new Pose2d(3, 2, Rotation2d.fromDegrees(180))));
