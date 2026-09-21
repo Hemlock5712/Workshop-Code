@@ -2,6 +2,7 @@ plugins {
     id "java"
     id "application"
     id "org.wpilib.GradleRIO" version "2027.0.0-alpha-7"
+    id "com.diffplug.spotless" version "8.9.0"
 }
 
 java {
@@ -104,4 +105,38 @@ jar {
 // Configure string concat to always inline compile
 tasks.withType(JavaCompile) {
     options.compilerArgs.add '-XDstringConcat=inline'
+}
+
+// Code formatting. Google Java Format, the same formatter WPILib uses internally
+// and the one the WPILib VS Code extension applies on save.
+//   ./gradlew spotlessApply   fix formatting
+//   ./gradlew spotlessCheck   report only
+spotless {
+    // Leave line endings exactly as they are on disk, so the formatter behaves the
+    // same whether git checked the file out on Windows, macOS or Linux.
+    lineEndings = 'PRESERVE'
+
+    java {
+        // Our own code only. Vendor drops (LimelightHelpers) and Tuner X output
+        // (generated/) stay as they ship, so re-downloading or regenerating them
+        // never shows up as a formatting diff.
+        target fileTree('.') {
+            include 'src/**/*.java'
+            exclude '**/build/**', '**/bin/**',
+                    '**/LimelightHelpers.java',
+                    '**/generated/**'
+        }
+        toggleOffOn()
+        // Pin a google-java-format new enough for the JDK 25 toolchain. Older versions
+        // call javac internals that changed in recent JDKs and die with NoSuchMethodError.
+        googleJavaFormat('1.35.0')
+        removeUnusedImports()
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+}
+
+// Auto-format every time the code compiles (i.e. on build/deploy/simulate).
+tasks.withType(JavaCompile).configureEach {
+    dependsOn 'spotlessApply'
 }
