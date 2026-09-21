@@ -42,16 +42,14 @@ public class MyTeleop extends PeriodicOpMode {
     //    exception: .until(...) gives its command an ending, so it can use whenComplete() below.
     State stowed =
         sm.addState(
-            Command.parallel(robot.arm.vertical(), robot.flywheel.stop())
-                .named("Stowed (hold)"));
+            Command.parallel(robot.arm.vertical(), robot.flywheel.stop()).named("Stowed (hold)"));
     State pickup =
         sm.addState(
-            Command.parallel(robot.arm.horizontal(), robot.flywheel.stop())
-                .named("Pickup (hold)"));
+            Command.parallel(robot.arm.horizontal(), robot.flywheel.stop()).named("Pickup (hold)"));
     State spinUp =
         sm.addState(
             Command.parallel(robot.arm.vertical(), robot.flywheel.runFast())
-                .until(robot.flywheel::isAtTarget)
+                .until(() -> robot.flywheel.isAtTarget())
                 .named("SpinUp until at speed"));
     State ready =
         sm.addState(

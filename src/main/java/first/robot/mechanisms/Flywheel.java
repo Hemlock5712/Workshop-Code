@@ -32,7 +32,7 @@ import org.wpilib.units.measure.AngularVelocity;
  * how fast the wheel is really spinning, {@link #getTargetVelocity} tells you the speed it is
  * aiming for, and {@link #isAtTarget} tells you whether it is up to speed.
  */
-public class Flywheel extends Mechanism {
+public class Flywheel implements Mechanism {
   private final CANBus canivore = new CANBus("canivore");
   private final TalonFX motor = new TalonFX(21, canivore);
 
@@ -79,7 +79,7 @@ public class Flywheel extends Mechanism {
 
   /** Stop the flywheel and keep it stopped. Never finishes. */
   public Command stop() {
-    return runRepeatedly(this::stopMotor).named("stop (hold)");
+    return runRepeatedly(() -> stopMotor()).named("stop (hold)");
   }
 
   /** True when the flywheel is within tolerance of its target speed. */
