@@ -44,10 +44,10 @@ public class Limelight {
   public static void registerAll(DriveMechanism drivetrain, String... cameraNames) {
     for (String name : cameraNames) {
       Limelight camera = new Limelight(name, drivetrain);
-      Scheduler.getDefault().addPeriodic(camera::update);
+      Scheduler.getDefault().addPeriodic(() -> camera.update());
     }
     // One flush per loop sends every camera's heading write in a single batch.
-    Scheduler.getDefault().addPeriodic(LimelightHelpers::Flush);
+    Scheduler.getDefault().addPeriodic(() -> LimelightHelpers.Flush());
   }
 
   /** Runs one vision update for this camera. */
