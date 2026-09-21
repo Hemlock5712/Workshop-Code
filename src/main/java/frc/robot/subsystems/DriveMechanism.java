@@ -4,8 +4,8 @@
 
 package frc.robot.subsystems;
 
+import com.ctre.phoenix6.swerve.SwerveDrivetrain.SwerveDriveState;
 import com.ctre.phoenix6.swerve.SwerveRequest;
-import frc.robot.Telemetry;
 import frc.robot.generated.TunerConstants;
 import java.util.function.Supplier;
 import org.wpilib.command3.Command;
@@ -16,26 +16,55 @@ import org.wpilib.math.kinematics.ChassisVelocities;
 import org.wpilib.math.linalg.Matrix;
 import org.wpilib.math.numbers.N1;
 import org.wpilib.math.numbers.N3;
+import org.wpilib.telemetry.Telemetry;
+import org.wpilib.telemetry.TelemetryTable;
 
 /**
  * The drivetrain's {@code Mechanism}. The swerve drivetrain class already extends CTRE's generated
  * class, and a Java class can only extend one thing. So this class owns the drivetrain and offers
  * its commands to the rest of the robot.
  */
-public class DriveMechanism extends Mechanism {
+public class DriveMechanism implements Mechanism {
   // TunerConstants comes from the Tuner X swerve generator. The checked-in file is an EXAMPLE
   // with fake device IDs and gains - regenerate it from Tuner X for your own robot.
   private final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
 
-  // Sends drivetrain data to NetworkTables so you can watch it live. See Telemetry.
-  private final Telemetry telemetry = new Telemetry();
-
   public DriveMechanism() {
-    super("Drivetrain");
     // Every loop, check which alliance we are on so "forward" faces the right way.
-    Scheduler.getDefault().addPeriodic(drivetrain::applyOperatorPerspective);
-    // CTRE feeds Telemetry fresh data up to 250 times per second.
-    drivetrain.registerTelemetry(telemetry::telemeterize);
+    Scheduler.getDefault().addPeriodic(() -> drivetrain.applyOperatorPerspective());
+    // CTRE feeds this fresh data up to 250 times per second, from its own thread.
+    // Telemetry is safe to call from any thread.
+    drivetrain.registerTelemetry(state -> logState(state));
+  }
+
+  /** The mechanism's name. Commands and the telemetry table are both named after it. */
+  @Override
+  public String getName() {
+    return "Drivetrain";
+  }
+
+  /**
+   * Publishes one drivetrain state. Everything lands under {@code Drivetrain/}, which you can watch
+   * live in AdvantageScope or Elastic. Want to watch something else? Add a line.
+   *
+   * <p>AdvantageScope's swerve widget reads ModuleStates, ModuleTargets and ModulePositions
+   * directly.
+   */
+  private void logState(SwerveDriveState state) {
+    TelemetryTable table = Telemetry.getTable(getName());
+
+    table.log("Pose", state.Pose);
+    table.log("Velocity", state.Velocity);
+    table.log("RawHeading", state.RawHeading);
+
+    table.log("ModuleStates", state.ModuleVelocities);
+    table.log("ModuleTargets", state.ModuleTargets);
+    table.log("ModulePositions", state.ModulePositions);
+
+    table.log("TranslationSpeedMps", Math.hypot(state.Velocity.vx, state.Velocity.vy));
+    table.log("RotationSpeedRadPerSec", state.Velocity.omega);
+    table.log("OdometryPeriodSeconds", state.OdometryPeriod);
+    table.log("OdometryFrequencyHz", state.OdometryPeriod > 0 ? 1.0 / state.OdometryPeriod : 0.0);
   }
 
   /** Returns a command that keeps sending the given control request to the drivetrain. */

@@ -4,10 +4,17 @@
 
 package frc.robot;
 
+import static org.wpilib.units.Units.MetersPerSecond;
+import static org.wpilib.units.Units.RadiansPerSecond;
+import static org.wpilib.units.Units.RotationsPerSecond;
+
+import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
+import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.DriveMechanism;
 import frc.robot.utils.SimStartup;
 import org.wpilib.command3.Scheduler;
+import org.wpilib.command3.button.CommandNiDsXboxController;
 import org.wpilib.command3.button.RobotModeTriggers;
 import org.wpilib.framework.OpModeRobot;
 
@@ -17,14 +24,39 @@ import org.wpilib.framework.OpModeRobot;
  *
  * <p>The framework finds the {@code @Teleop} and {@code @Autonomous} classes in {@code
  * frc.robot.opmodes} on its own and handles every mode switch, so this class has no per-mode
- * methods. It owns the drivetrain and runs the command scheduler every loop.
+ * methods. It owns the drivetrain and the driver's controller, sets the joystick drive as the
+ * drivetrain's default command in every mode, and runs the command scheduler every loop.
  */
 public class Robot extends OpModeRobot {
   public final DriveMechanism drivetrain = new DriveMechanism();
+  public final CommandNiDsXboxController driver = new CommandNiDsXboxController(0);
+
+  private final double maxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // top speed
+  private final double maxAngularRate =
+      RotationsPerSecond.of(0.75).in(RadiansPerSecond); // 3/4 turn per second
+
+  private final SwerveRequest.FieldCentric drive =
+      new SwerveRequest.FieldCentric()
+          .withDeadband(maxSpeed * 0.1)
+          .withRotationalDeadband(maxAngularRate * 0.1) // ignore the sticks' bottom 10%
+          .withDriveRequestType(DriveRequestType.Velocity); // closed loop, uses the drive gains
 
   public Robot() {
-    // Brake while disabled, in every mode. This binding is made here instead of in an OpMode so
-    // it always exists. OpMode bindings go away on a mode switch; this one never does.
+    // Joystick drive, in every mode. Set here instead of in an OpMode so it always exists: when
+    // any other drivetrain command ends or is interrupted, the drivetrain goes back to the sticks.
+    // In WPILib, X points forward and Y points left. The sticks read the other way around, so
+    // each axis below gets a minus sign.
+    drivetrain.setDefaultCommand(
+        drivetrain.applyRequest(
+            () ->
+                drive
+                    .withVelocityX(-driver.getLeftY() * maxSpeed) // left stick up = forward
+                    .withVelocityY(-driver.getLeftX() * maxSpeed) // left stick left = left
+                    .withRotationalRate(
+                        -driver.getRightX() * maxAngularRate))); // right stick left = turn left
+
+    // Brake while disabled, in every mode. Made here for the same reason: OpMode bindings go
+    // away on a mode switch; this one never does.
     final var idle = new SwerveRequest.Idle();
     RobotModeTriggers.disabled().whileTrue(drivetrain.applyRequest(() -> idle));
   }
