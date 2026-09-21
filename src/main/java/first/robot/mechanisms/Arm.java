@@ -12,14 +12,11 @@ import com.ctre.phoenix6.CANBus;
 import com.ctre.phoenix6.configs.FeedbackConfigs;
 import com.ctre.phoenix6.configs.MotionMagicConfigs;
 import com.ctre.phoenix6.configs.MotorOutputConfigs;
-import com.ctre.phoenix6.configs.Slot0Configs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
-import com.ctre.phoenix6.controls.MotionMagicVoltage;
 import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.CANcoder;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.FeedbackSensorSourceValue;
-import com.ctre.phoenix6.signals.GravityTypeValue;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import org.wpilib.command3.Command;
@@ -28,14 +25,14 @@ import org.wpilib.command3.Mechanism;
 /**
  * The arm. One TalonFX motor plus a CANcoder that measures the arm's angle.
  *
- * <p>New in this lesson: the arm offers <b>commands</b> (each method returns a
- * {@link Command}). Anything that wants to move the arm goes through
- * a command. That is how the scheduler keeps two things from fighting over the motor.
+ * <p>New in this lesson: the arm offers <b>commands</b> (each method returns a {@link Command}).
+ * Anything that wants to move the arm goes through a command. That is how the scheduler keeps two
+ * things from fighting over the motor.
  *
  * <p>The commands still just push a voltage, so where the arm ends up depends on gravity and
  * friction. The next lesson makes the motor aim for a real target instead.
  */
-public class Arm extends Mechanism {
+public class Arm implements Mechanism {
   private final CANBus canivore = new CANBus("canivore");
   private final TalonFX motor = new TalonFX(31, canivore);
   private final CANcoder encoder = new CANcoder(32, canivore);
@@ -79,7 +76,7 @@ public class Arm extends Mechanism {
 
   /** Stop the arm motor and keep it stopped. Never finishes. */
   public Command stop() {
-    return runRepeatedly(this::stopMotor).named("stop (hold)");
+    return runRepeatedly(() -> stopMotor()).named("stop (hold)");
   }
 
   private void setVoltage(double voltage) {

@@ -11,9 +11,7 @@ import static org.wpilib.units.Units.Volts;
 import com.ctre.phoenix6.CANBus;
 import com.ctre.phoenix6.configs.MotionMagicConfigs;
 import com.ctre.phoenix6.configs.MotorOutputConfigs;
-import com.ctre.phoenix6.configs.Slot0Configs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
-import com.ctre.phoenix6.controls.MotionMagicVelocityVoltage;
 import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
@@ -28,7 +26,7 @@ import org.wpilib.command3.Mechanism;
  * <p>Same idea as {@link Arm}. The flywheel offers commands now. The commands still push plain
  * voltage. The next lesson switches to real velocity control.
  */
-public class Flywheel extends Mechanism {
+public class Flywheel implements Mechanism {
   private final CANBus canivore = new CANBus("canivore");
   private final TalonFX motor = new TalonFX(21, canivore);
 
@@ -68,7 +66,7 @@ public class Flywheel extends Mechanism {
 
   /** Stop the flywheel and keep it stopped. Never finishes. */
   public Command stop() {
-    return runRepeatedly(this::stopMotor).named("stop (hold)");
+    return runRepeatedly(() -> stopMotor()).named("stop (hold)");
   }
 
   private void setVoltage(double voltage) {
