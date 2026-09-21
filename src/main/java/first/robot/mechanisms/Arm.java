@@ -34,10 +34,10 @@ import org.wpilib.command3.Mechanism;
  * <p>The gains are not typed here. They are pasted out of Phoenix Tuner X, where you measured them
  * in Workshop 1.
  *
- * <p>There is also no stop command anymore. A {@code Mechanism} with nothing commanding it runs an
- * idle default command on its own.
+ * <p>There is also no stop command anymore. The position request stays applied, so the arm holds
+ * its last target until something else commands it.
  */
-public class Arm extends Mechanism {
+public class Arm implements Mechanism {
   private final CANBus canivore = new CANBus("canivore");
   private final TalonFX motor = new TalonFX(31, canivore);
   private final CANcoder encoder = new CANcoder(32, canivore);
@@ -80,16 +80,16 @@ public class Arm extends Mechanism {
   // command is scheduled. Every one of them is a hold: it never finishes on its own.
 
   /**
-   * Move to vertical, 0.25 rotations or 90 degrees, and hold it there. This is the stowed
-   * position for transport. Never finishes.
+   * Move to vertical, 0.25 rotations or 90 degrees, and hold it there. This is the stowed position
+   * for transport. Never finishes.
    */
   public Command vertical() {
     return runRepeatedly(() -> setPosition(0.25)).named("vertical (hold)");
   }
 
   /**
-   * Move to horizontal, 0.5 rotations or 180 degrees, and hold it there. This is the ground
-   * intake position. Never finishes.
+   * Move to horizontal, 0.5 rotations or 180 degrees, and hold it there. This is the ground intake
+   * position. Never finishes.
    */
   public Command horizontal() {
     return runRepeatedly(() -> setPosition(0.5)).named("horizontal (hold)");

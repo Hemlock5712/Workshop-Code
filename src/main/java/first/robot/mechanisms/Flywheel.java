@@ -30,7 +30,7 @@ import org.wpilib.command3.Mechanism;
  *
  * <p>Its gains come out of Tuner X the same way the arm's do.
  */
-public class Flywheel extends Mechanism {
+public class Flywheel implements Mechanism {
   private final CANBus canivore = new CANBus("canivore");
   private final TalonFX motor = new TalonFX(21, canivore);
 
@@ -74,7 +74,7 @@ public class Flywheel extends Mechanism {
 
   /** Stop the flywheel and keep it stopped. Never finishes. */
   public Command stop() {
-    return runRepeatedly(this::stopMotor).named("stop (hold)");
+    return runRepeatedly(() -> stopMotor()).named("stop (hold)");
   }
 
   private void setVelocity(double rps) {
