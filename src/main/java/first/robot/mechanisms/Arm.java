@@ -35,9 +35,9 @@ import org.wpilib.units.measure.Angle;
  * <p>New in this lesson (mech-4-ReadingState): the <b>read side</b>. {@link #getPosition} tells you
  * where the arm is, {@link #getTargetPosition} tells you where it is headed, and {@link
  * #isAtTarget} tells you whether it has arrived. That last check is how a hold gets an ending:
- * {@code arm.vertical().until(arm::isAtTarget)} finishes when the arm is really there.
+ * {@code arm.vertical().until(() -> arm.isAtTarget())} finishes when the arm is really there.
  */
-public class Arm extends Mechanism {
+public class Arm implements Mechanism {
   private final CANBus canivore = new CANBus("canivore");
   private final TalonFX motor = new TalonFX(31, canivore);
   private final CANcoder encoder = new CANcoder(32, canivore);
@@ -83,16 +83,16 @@ public class Arm extends Mechanism {
   // command is scheduled. Every one of them is a hold: it never finishes on its own.
 
   /**
-   * Move to vertical, 0.25 rotations or 90 degrees, and hold it there. This is the stowed
-   * position for transport. Never finishes.
+   * Move to vertical, 0.25 rotations or 90 degrees, and hold it there. This is the stowed position
+   * for transport. Never finishes.
    */
   public Command vertical() {
     return runRepeatedly(() -> setPosition(0.25)).named("vertical (hold)");
   }
 
   /**
-   * Move to horizontal, 0.5 rotations or 180 degrees, and hold it there. This is the ground
-   * intake position. Never finishes.
+   * Move to horizontal, 0.5 rotations or 180 degrees, and hold it there. This is the ground intake
+   * position. Never finishes.
    */
   public Command horizontal() {
     return runRepeatedly(() -> setPosition(0.5)).named("horizontal (hold)");

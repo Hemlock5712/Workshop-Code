@@ -6,6 +6,7 @@ package first.robot.opmode;
 
 import first.robot.Robot;
 import org.wpilib.command3.Command;
+import org.wpilib.command3.Coroutine;
 import org.wpilib.command3.button.CommandNiDsXboxController;
 import org.wpilib.opmode.PeriodicOpMode;
 import org.wpilib.opmode.Teleop;
@@ -15,14 +16,16 @@ import org.wpilib.opmode.Teleop;
  * station. The button bindings made in the constructor belong to this OpMode, and the framework
  * removes them on a mode switch. No cleanup code needed.
  *
- * <p>The buttons here run the arm and flywheel PID commands. New in this lesson: the Y button
- * builds a sequence that waits for the arm to really arrive before spinning up the flywheel.
+ * <p>The buttons here run the arm and flywheel PID commands. New in this lesson: the Y button waits
+ * for the arm to really arrive before spinning up the flywheel.
  */
 @Teleop(name = "Teleop")
 public class MyTeleop extends PeriodicOpMode {
   private final CommandNiDsXboxController driver = new CommandNiDsXboxController(0);
+  private final Robot robot;
 
   public MyTeleop(Robot robot) {
+    this.robot = robot;
     // Hold the left trigger to drive the arm to its vertical position. Releasing cancels the
     // command; the position request stays applied, so the arm holds where it is.
     driver.leftTrigger().whileTrue(robot.arm.vertical());
@@ -33,27 +36,34 @@ public class MyTeleop extends PeriodicOpMode {
     // A: spin fast while held, stop when released.
     driver.a().whileTrue(robot.flywheel.runFast()).whileFalse(robot.flywheel.stop());
 
-    // Y: raise the arm, wait until it really reaches the target, then spin the flywheel fast.
-    // Without isAtTarget there is no way to know when "then" is.
-    //
-    // vertical() is a hold, so it never finishes. Dropped straight into Command.sequence it would
-    // stick there forever. .until(arm::isAtTarget) gives the hold an ending right here. Do not
-    // add a special "AndWait" method to the mechanism. In an auto, also add .withTimeout(seconds)
-    // as a time limit. If the arm never quite arrives, the routine moves on instead of getting
-    // stuck for the rest of the period.
-    //
-    // The last step (runFast) is still a hold, so the whole sequence is a hold too. That is why
-    // its name ends in "(hold)" and why we use whileTrue: releasing Y cancels it.
+    // Y: raise the arm, then spin the flywheel once it is really there.
     driver
         .y()
         .whileTrue(
-            Command.sequence(
-                    robot.arm
-                        .vertical()
-                        .until(robot.arm::isAtTarget)
-                        .named("vertical until at target"),
-                    robot.flywheel.runFast())
+            Command.noRequirements(coroutine -> spinUpWhenReady(coroutine))
                 .named("Spin Up When Ready (hold)"))
         .whileFalse(robot.flywheel.stop());
+  }
+
+  /**
+   * Raise the arm, wait for it to get there, then spin the flywheel and keep it spinning.
+   *
+   * <p>A coroutine rather than Command.sequence, which would own both mechanisms for the whole run
+   * while only driving one at a time. Here the routine requires nothing and each step requires just
+   * its own mechanism.
+   *
+   * <p>No time limit on the wait, because the driver can let go. Lesson 5 does this in an auto,
+   * where nobody can.
+   *
+   * @param coroutine the coroutine this routine runs on, handed in by the scheduler
+   */
+  private void spinUpWhenReady(Coroutine coroutine) {
+    // fork, not await: vertical() is a hold and never finishes.
+    coroutine.fork(robot.arm.vertical());
+
+    coroutine.waitUntil(() -> robot.arm.isAtTarget());
+
+    // runFast is a hold too, so this never returns: releasing Y cancels the whole routine.
+    coroutine.await(robot.flywheel.runFast());
   }
 }
