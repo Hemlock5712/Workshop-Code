@@ -19,9 +19,8 @@ import org.wpilib.command3.Command;
 import org.wpilib.command3.Mechanism;
 import org.wpilib.math.geometry.Translation2d;
 import org.wpilib.math.interpolation.InterpolatingDoubleTreeMap;
-import org.wpilib.networktables.DoublePublisher;
-import org.wpilib.networktables.NetworkTable;
-import org.wpilib.networktables.NetworkTableInstance;
+import org.wpilib.telemetry.Telemetry;
+import org.wpilib.telemetry.TelemetryTable;
 
 /**
  * A "dynamic" flywheel: it picks its shooting speed from how far the robot is from the goal. (Same
@@ -35,7 +34,7 @@ import org.wpilib.networktables.NetworkTableInstance;
  * <p>A {@code Mechanism} has no periodic() method, so that measure-then-set work happens inside the
  * command itself, which runs every loop.
  */
-public class Flywheel extends Mechanism {
+public class Flywheel implements Mechanism {
   // Field point we are shooting at, blue-alliance origin (meters). TODO: set the real goal.
   private static final Translation2d TARGET = new Translation2d(3, 5);
 
@@ -60,12 +59,8 @@ public class Flywheel extends Mechanism {
   // distance (meters) -> flywheel speed (rotations/second). Gaps are filled in automatically.
   private final InterpolatingDoubleTreeMap table = new InterpolatingDoubleTreeMap();
 
-  // Publish live numbers to NetworkTables. DataLogManager also records them to the log file.
-  private final NetworkTable telemetry = NetworkTableInstance.getDefault().getTable("Flywheel");
-  private final DoublePublisher distancePublisher =
-      telemetry.getDoubleTopic("DistanceToTargetMeters").publish();
-  private final DoublePublisher targetVelocityPublisher =
-      telemetry.getDoubleTopic("TargetVelocityRps").publish();
+  // Everything logged here lands under Flywheel/, live on the dashboard and in the log file.
+  private final TelemetryTable telemetry = Telemetry.getTable(getName());
 
   public Flywheel(DriveMechanism drivetrain) {
     this.drivetrain = drivetrain;
@@ -107,18 +102,18 @@ public class Flywheel extends Mechanism {
 
   /** Stop the flywheel and keep it stopped. Never finishes. */
   public Command stop() {
-    return runRepeatedly(leader::stopMotor).named("stop (hold)");
+    return runRepeatedly(() -> leader.stopMotor()).named("stop (hold)");
   }
 
   /** Distance (meters) from where the robot thinks it is to the target. */
   private double distanceToTarget() {
     double distance = drivetrain.getPose().getTranslation().getDistance(TARGET);
-    distancePublisher.set(distance);
+    telemetry.log("DistanceToTargetMeters", distance);
     return distance;
   }
 
   private void setVelocity(double rps) {
-    targetVelocityPublisher.set(rps);
+    telemetry.log("TargetVelocityRps", rps);
     leader.setControl(velocityOut.withVelocity(RotationsPerSecond.of(rps)));
   }
 }
