@@ -1,0 +1,67 @@
+// WPILib 2027 alpha-7 in a browser. Open this branch in GitHub Codespaces (or
+// "Reopen in Container" locally) and the project builds, tests and simulates
+// with nothing installed on your computer.
+//
+//   ./gradlew build   compile
+//   ./gradlew test    run the unit tests
+//   ./gradlew run     run the robot in simulation, with the sim GUI
+//
+// GradleRIO 2027 has no simulateJava task; `run` is the command-line
+// simulation, and WPILib: Simulate Robot Code in the command palette does the
+// same thing. The simulation GUI draws on a virtual desktop: open the
+// "Simulation desktop" port (6080) from the Ports tab and click Connect.
+{
+  "name": "WPILib 2027 alpha-7",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "features": {
+    // A virtual X desktop served over noVNC, so halsim_gui has a screen.
+    "ghcr.io/devcontainers/features/desktop-lite:1": {
+      "password": "noPassword",
+      "webPort": "6080",
+      "vncPort": "5901"
+    }
+  },
+  "forwardPorts": [6080],
+  "portsAttributes": {
+    "6080": {
+      "label": "Simulation desktop",
+      "onAutoForward": "notify"
+    },
+    "5901": {
+      "label": "VNC",
+      "onAutoForward": "ignore"
+    }
+  },
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "8gb"
+  },
+  "remoteUser": "vscode",
+  "customizations": {
+    "vscode": {
+      // The WPILib extension itself is not on the Marketplace for 2027; it is
+      // installed from the .vsix baked into the image, by postAttachCommand.
+      "extensions": [
+        "redhat.java",
+        "vscjava.vscode-java-debug",
+        "vscjava.vscode-java-dependency"
+      ],
+      "settings": {
+        "java.jdt.ls.java.home": "/home/vscode/.local/share/wpilib/2027_alpha7/jdk",
+        "java.configuration.runtimes": [
+          {
+            "name": "JavaSE-25",
+            "path": "/home/vscode/.local/share/wpilib/2027_alpha7/jdk",
+            "default": true
+          }
+        ],
+        "java.import.gradle.java.home": "/home/vscode/.local/share/wpilib/2027_alpha7/jdk",
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  },
+  "postAttachCommand": "bash .devcontainer/install-wpilib-extension.sh"
+}
