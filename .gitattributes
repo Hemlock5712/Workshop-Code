@@ -1,0 +1,5 @@
+# Shell scripts run inside Linux containers (Codespaces, Reopen in Container)
+# even when the checkout is on Windows, so they must keep LF endings.
+gradlew text eol=lf
+*.sh text eol=lf
+gradlew.bat text eol=crlf
