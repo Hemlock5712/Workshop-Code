@@ -22,7 +22,10 @@
       "password": "noPassword",
       "webPort": "6080",
       "vncPort": "5901"
-    }
+    },
+    // So `gh codespace ssh` works, for a mentor driving a student's Codespace
+    // from a terminal. A browser Codespace does not need it.
+    "ghcr.io/devcontainers/features/sshd:1": {}
   },
   "forwardPorts": [6080],
   "portsAttributes": {
