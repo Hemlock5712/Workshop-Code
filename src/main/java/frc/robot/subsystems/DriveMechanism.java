@@ -4,8 +4,15 @@
 
 package frc.robot.subsystems;
 
+import com.ctre.phoenix6.Utils;
 import com.ctre.phoenix6.swerve.SwerveDrivetrain.SwerveDriveState;
 import com.ctre.phoenix6.swerve.SwerveRequest;
+import com.pathplanner.lib.config.PIDConstants;
+import com.pathplanner.lib.config.RobotConfig;
+import com.pathplanner.lib.controllers.PPHolonomicDriveController;
+import com.pathplanner.lib.path.PathPlannerPath;
+import com.pathplanner.lib.trajectory.PathPlannerTrajectory;
+import com.pathplanner.lib.trajectory.PathPlannerTrajectoryState;
 import frc.robot.generated.TunerConstants;
 import java.util.function.Supplier;
 import org.wpilib.command3.Command;
@@ -28,6 +35,20 @@ public class DriveMechanism implements Mechanism {
   // TunerConstants comes from the Tuner X swerve generator. The checked-in file is an EXAMPLE
   // with fake device IDs and gains - regenerate it from Tuner X for your own robot.
   private final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
+
+  // The mass, MOI and module layout typed into the PathPlanner app's Robot Config page. The app
+  // saves them to deploy/pathplanner/settings.json, and this reads that file.
+  private final RobotConfig pathConfig = loadPathConfig();
+
+  // Pulls the robot back onto the path when it drifts. The first gain is for position (m/s of
+  // correction per meter of error), the second for heading. TODO: tune on your robot.
+  private final PPHolonomicDriveController pathController =
+      new PPHolonomicDriveController(
+          new PIDConstants(5.0, 0.0, 0.0), new PIDConstants(5.0, 0.0, 0.0));
+
+  // PathPlanner hands back speeds relative to the robot, so the request is robot-relative too.
+  private final SwerveRequest.ApplyRobotVelocity pathRequest =
+      new SwerveRequest.ApplyRobotVelocity();
 
   public DriveMechanism() {
     // Every loop, check which alliance we are on so "forward" faces the right way.
@@ -86,6 +107,87 @@ public class DriveMechanism implements Mechanism {
    */
   public void setControl(SwerveRequest request) {
     drivetrain.setControl(request);
+  }
+
+  /**
+   * Returns a command that drives one PathPlanner path from start to finish, then stops.
+   *
+   * <p>The plan is made when the command starts, from wherever the robot is and however fast it is
+   * moving. Each loop asks the plan where the robot should be right now, and the controller turns
+   * the gap into a speed.
+   *
+   * @param path a path loaded with {@link #loadPath(String)}
+   */
+  public Command followPath(PathPlannerPath path) {
+    return run(coroutine -> {
+          PathPlannerTrajectory trajectory =
+              path.generateTrajectory(getRobotVelocity(), getPose().getRotation(), pathConfig);
+          pathController.reset(getPose(), getRobotVelocity());
+          double startTime = Utils.getCurrentTimeSeconds();
+          double elapsed = 0.0;
+
+          while (elapsed < trajectory.getTotalTimeSeconds()) {
+            PathPlannerTrajectoryState target = trajectory.sample(elapsed);
+            drivetrain.setControl(
+                pathRequest.withVelocity(
+                    pathController.calculateRobotRelativeSpeeds(getPose(), target)));
+            Telemetry.getTable(getName()).log("PathTarget", target.pose);
+            coroutine.yield();
+            elapsed = Utils.getCurrentTimeSeconds() - startTime;
+          }
+
+          // setControl latches. Without this, the path's last speed keeps being applied.
+          stopDriving();
+          System.out.println(
+              +elapsed
+                  + " total="
+                  + trajectory.getTotalTimeSeconds()
+                  + " pose="
+                  + getPose()
+                  + " target="
+                  + trajectory.getEndState().pose);
+        })
+        .whenCanceled(() -> stopDriving())
+        .named("FollowPath " + path.name);
+  }
+
+  /** Sends zero speed. The drivetrain holds still until something sends another request. */
+  public void stopDriving() {
+    drivetrain.setControl(pathRequest.withVelocity(new ChassisVelocities()));
+  }
+
+  /**
+   * Tells odometry where the robot is. An autonomous routine calls this once, before its first
+   * path, with the pose that path starts from.
+   */
+  public void resetPose(Pose2d pose) {
+    drivetrain.resetPose(pose);
+  }
+
+  /** How fast the robot is moving, in its own directions. X is the robot's forward. */
+  public ChassisVelocities getRobotVelocity() {
+    return drivetrain.getState().Velocity;
+  }
+
+  /**
+   * Loads a path the PathPlanner app saved to deploy/pathplanner/paths.
+   *
+   * @param pathName the name shown in the app, without ".path"
+   */
+  public static PathPlannerPath loadPath(String pathName) {
+    try {
+      return PathPlannerPath.fromPathFile(pathName);
+    } catch (Exception e) {
+      throw new IllegalStateException("Could not load PathPlanner path \"" + pathName + "\"", e);
+    }
+  }
+
+  private static RobotConfig loadPathConfig() {
+    try {
+      return RobotConfig.fromGUISettings();
+    } catch (Exception e) {
+      throw new IllegalStateException("Could not load deploy/pathplanner/settings.json", e);
+    }
   }
 
   /**
