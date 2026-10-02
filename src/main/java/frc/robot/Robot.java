@@ -9,7 +9,9 @@ import frc.robot.subsystems.DriveMechanism;
 import frc.robot.utils.SimStartup;
 import org.wpilib.command3.Scheduler;
 import org.wpilib.command3.button.RobotModeTriggers;
+import org.wpilib.driverstation.DriverStation;
 import org.wpilib.framework.OpModeRobot;
+import org.wpilib.system.DataLogManager;
 
 /**
  * The main robot class. The robot's mechanisms live here as public fields. Every OpMode gets a
@@ -23,6 +25,13 @@ public class Robot extends OpModeRobot {
   public final DriveMechanism drivetrain = new DriveMechanism();
 
   public Robot() {
+    // Start logging. DataLogManager records every NetworkTables value change (including
+    // everything Telemetry publishes) into a .wpilog file, plus console output. startDataLog
+    // also records the driver station state and joystick data. Logs go to ./logs in simulation
+    // and to a USB drive (or /home/systemcore/logs) on the real robot.
+    DataLogManager.start();
+    DriverStation.startDataLog(DataLogManager.getLog());
+
     // Brake while disabled, in every mode. This binding is made here instead of in an OpMode so
     // it always exists. OpMode bindings go away on a mode switch; this one never does.
     final var idle = new SwerveRequest.Idle();
