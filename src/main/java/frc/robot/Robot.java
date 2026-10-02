@@ -6,6 +6,7 @@ package frc.robot;
 
 import com.ctre.phoenix6.swerve.SwerveRequest;
 import frc.robot.subsystems.DriveMechanism;
+import frc.robot.subsystems.Limelight;
 import frc.robot.utils.SimStartup;
 import org.wpilib.command3.Scheduler;
 import org.wpilib.command3.button.RobotModeTriggers;
@@ -36,6 +37,11 @@ public class Robot extends OpModeRobot {
     // it always exists. OpMode bindings go away on a mode switch; this one never does.
     final var idle = new SwerveRequest.Idle();
     RobotModeTriggers.disabled().whileTrue(drivetrain.applyRequest(() -> idle));
+
+    // Vision: set up every Limelight in one call. The names must match each camera's name in
+    // NetworkTables. Each camera then corrects the drivetrain's odometry with AprilTag sightings
+    // every loop. Does nothing in simulation (no camera there).
+    Limelight.registerAll(drivetrain, "limelight");
   }
 
   @Override
