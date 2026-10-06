@@ -6,11 +6,17 @@ package frc.robot.subsystems;
 
 import com.ctre.phoenix6.swerve.SwerveDrivetrain.SwerveDriveState;
 import com.ctre.phoenix6.swerve.SwerveRequest;
+import com.pathplanner.lib.command3.AutoBuilder;
+import com.pathplanner.lib.config.PIDConstants;
+import com.pathplanner.lib.config.RobotConfig;
+import com.pathplanner.lib.controllers.PPHolonomicDriveController;
 import frc.robot.generated.TunerConstants;
 import java.util.function.Supplier;
 import org.wpilib.command3.Command;
 import org.wpilib.command3.Mechanism;
 import org.wpilib.command3.Scheduler;
+import org.wpilib.driverstation.Alliance;
+import org.wpilib.driverstation.MatchState;
 import org.wpilib.math.geometry.Pose2d;
 import org.wpilib.math.kinematics.ChassisVelocities;
 import org.wpilib.math.linalg.Matrix;
@@ -29,12 +35,32 @@ public class DriveMechanism implements Mechanism {
   // with fake device IDs and gains - regenerate it from Tuner X for your own robot.
   private final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
 
+  // PathPlanner hands back speeds relative to the robot, so the request is robot-relative too.
+  private final SwerveRequest.ApplyRobotVelocity pathRequest =
+      new SwerveRequest.ApplyRobotVelocity();
+
   public DriveMechanism() {
     // Every loop, check which alliance we are on so "forward" faces the right way.
     Scheduler.getDefault().addPeriodic(() -> drivetrain.applyOperatorPerspective());
     // CTRE feeds this fresh data up to 250 times per second, from its own thread.
     // Telemetry is safe to call from any thread.
     drivetrain.registerTelemetry(state -> logState(state));
+
+    // Teaches PathPlanner how to drive this robot. After this, AutoBuilder can turn any path or
+    // auto drawn in the PathPlanner app into a command.
+    AutoBuilder.configure(
+        () -> getPose(), // where the robot is
+        pose -> resetPose(pose), // used when an auto says where the robot starts
+        () -> getRobotVelocity(), // how fast it is moving, in its own directions
+        speeds -> drivetrain.setControl(pathRequest.withVelocity(speeds)), // drive like this
+        // Pulls the robot back onto the path when it drifts. The first gain is for position (m/s
+        // of correction per meter of error), the second for heading. TODO: tune on your robot.
+        new PPHolonomicDriveController(
+            new PIDConstants(5.0, 0.0, 0.0), new PIDConstants(5.0, 0.0, 0.0)),
+        loadPathConfig(),
+        // Paths are drawn from the blue side. On red, PathPlanner mirrors them across the field.
+        () -> MatchState.getAlliance().orElse(Alliance.BLUE) == Alliance.RED,
+        this); // path commands require this mechanism
   }
 
   /** The mechanism's name. Commands and the telemetry table are both named after it. */
@@ -86,6 +112,31 @@ public class DriveMechanism implements Mechanism {
    */
   public void setControl(SwerveRequest request) {
     drivetrain.setControl(request);
+  }
+
+  /**
+   * Tells odometry where the robot is. PathPlanner calls this at the start of an auto, with the
+   * pose the auto's first path starts from.
+   */
+  public void resetPose(Pose2d pose) {
+    drivetrain.resetPose(pose);
+  }
+
+  /** How fast the robot is moving, in its own directions. X is the robot's forward. */
+  public ChassisVelocities getRobotVelocity() {
+    return drivetrain.getState().Velocity;
+  }
+
+  /**
+   * Reads the mass, MOI and module layout typed into the PathPlanner app's Robot Config page. The
+   * app saves them to deploy/pathplanner/settings.json.
+   */
+  private static RobotConfig loadPathConfig() {
+    try {
+      return RobotConfig.fromGUISettings();
+    } catch (Exception e) {
+      throw new IllegalStateException("Could not load deploy/pathplanner/settings.json", e);
+    }
   }
 
   /**
