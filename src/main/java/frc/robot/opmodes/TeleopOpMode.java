@@ -14,6 +14,8 @@ import frc.robot.Robot;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.DriveMechanism;
 import org.wpilib.command3.button.CommandNiDsXboxController;
+import org.wpilib.math.geometry.Pose2d;
+import org.wpilib.math.geometry.Rotation2d;
 import org.wpilib.opmode.PeriodicOpMode;
 import org.wpilib.opmode.Teleop;
 
@@ -56,5 +58,9 @@ public class TeleopOpMode extends PeriodicOpMode {
 
     // Left bumper: make the robot's current facing the new "forward".
     driver.leftBumper().onTrue(drivetrain.seedFieldCentric());
+
+    // Hold A: find a way around the hub to the middle of the neutral zone, and drive it. Let go
+    // and the sticks take over again. The goal is blue-origin, like every pose on this robot.
+    driver.a().whileTrue(drivetrain.pathfindTo(new Pose2d(7.5, 4.0, Rotation2d.ZERO)));
   }
 }
