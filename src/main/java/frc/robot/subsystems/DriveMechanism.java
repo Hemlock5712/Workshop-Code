@@ -10,6 +10,8 @@ import com.pathplanner.lib.command3.AutoBuilder;
 import com.pathplanner.lib.config.PIDConstants;
 import com.pathplanner.lib.config.RobotConfig;
 import com.pathplanner.lib.controllers.PPHolonomicDriveController;
+import com.pathplanner.lib.path.PathConstraints;
+import com.pathplanner.lib.pathfinding.Pathfinding;
 import frc.robot.generated.TunerConstants;
 import java.util.function.Supplier;
 import org.wpilib.command3.Command;
@@ -40,6 +42,9 @@ public class DriveMechanism implements Mechanism {
       new SwerveRequest.ApplyRobotVelocity();
 
   public DriveMechanism() {
+    // Load deploy/pathplanner/navgrid.json and start the route search on its own thread, now,
+    // so the first request does not pay for it.
+    Pathfinding.ensureInitialized();
     // Every loop, check which alliance we are on so "forward" faces the right way.
     Scheduler.getDefault().addPeriodic(() -> drivetrain.applyOperatorPerspective());
     // CTRE feeds this fresh data up to 250 times per second, from its own thread.
@@ -112,6 +117,23 @@ public class DriveMechanism implements Mechanism {
    */
   public void setControl(SwerveRequest request) {
     drivetrain.setControl(request);
+  }
+
+  /**
+   * Returns a command that finds a route around the field's obstacles to {@code goal}, then drives
+   * it and stops.
+   *
+   * <p>The obstacles are the blocked cells in deploy/pathplanner/navgrid.json, which the
+   * PathPlanner app edits. While driving, the route is planned again whenever the search finds a
+   * better one.
+   *
+   * @param goal where to end up, blue-origin, including the heading to finish at
+   */
+  public Command pathfindTo(Pose2d goal) {
+    // Speed limits for routes the pathfinder makes up: 2 m/s, 2 m/s², and a turn rate of 3/4 of a
+    // turn per second. A drawn path carries its own limits; a found one gets these.
+    return AutoBuilder.pathfindToPose(
+        goal, new PathConstraints(2.0, 2.0, Math.toRadians(270), Math.toRadians(360), 12.0));
   }
 
   /**
