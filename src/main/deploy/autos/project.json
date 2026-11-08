@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "project_id": "workspace-832d9e82-17f8-49d3-8668-5c2b827b7a21",
+  "display_name": "autos",
+  "editor_config": {
+    "gui": {
+      "event_trigger_keys": [
+        "atMidpoint"
+      ],
+      "robot": {
+        "length_meters": 0.8,
+        "width_meters": 0.8
+      },
+      "protrusions": {
+        "enabled": false,
+        "distance_meters": 0,
+        "side": "none",
+        "default_state": "",
+        "show_on_event_keys": [],
+        "hide_on_event_keys": []
+      }
+    },
+    "kinematic_constraints": {
+      "default_auto_velocity_velocity_safety_factor": 1,
+      "default_auto_velocity_acceleration_safety_factor": 1,
+      "default_auto_velocity_merge_tolerance_meters_per_sec": 0.3
+    }
+  },
+  "paths": [
+    {
+      "path_id": "leave-start.json",
+      "display_name": "leave-start",
+      "file_name": "leave-start.json"
+    }
+  ],
+  "path_groups": [],
+  "linked_targets": []
+}
