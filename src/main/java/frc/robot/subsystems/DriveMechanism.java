@@ -114,7 +114,7 @@ public class DriveMechanism implements Mechanism {
 
   /**
    * Sends one control request straight to the drivetrain. A command that already requires this
-   * mechanism (like {@code DriveToPoint} in a later lesson) uses this to drive.
+   * mechanism uses this to drive.
    */
   public void setControl(SwerveRequest request) {
     drivetrain.setControl(request);
@@ -129,6 +129,23 @@ public class DriveMechanism implements Mechanism {
    */
   public FollowPath followPath(String name) {
     return pathBuilder.build(new Path(name));
+  }
+
+  /**
+   * Returns a command that drives straight to a spot on the field, from wherever the robot is when
+   * it starts. It is a BLine path with one waypoint, built in code instead of drawn in the editor,
+   * so it gets the same controllers, speed limits and end tolerances as every drawn path.
+   *
+   * <p>The command finishes when the robot is within the end tolerances in {@code config.json}, and
+   * sends a zero when it finishes or is canceled.
+   *
+   * @param goal where to drive, in field coordinates from the blue alliance corner
+   */
+  public FollowPath driveToPoint(Pose2d goal) {
+    return pathBuilder
+        .build(new Path(new Path.Waypoint(goal)))
+        // A field coordinate is the same spot on either alliance, so never turn it around.
+        .withShouldFlip(() -> false);
   }
 
   /** Drives at the given speeds, in the robot's own directions. X is the robot's forward. */

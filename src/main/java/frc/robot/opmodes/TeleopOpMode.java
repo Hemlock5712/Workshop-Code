@@ -5,6 +5,8 @@
 package frc.robot.opmodes;
 
 import frc.robot.Robot;
+import org.wpilib.math.geometry.Pose2d;
+import org.wpilib.math.geometry.Rotation2d;
 import org.wpilib.opmode.PeriodicOpMode;
 import org.wpilib.opmode.Teleop;
 
@@ -22,5 +24,9 @@ public class TeleopOpMode extends PeriodicOpMode {
   public TeleopOpMode(Robot robot) {
     // Left bumper: make the robot's current facing the new "forward".
     robot.driver.leftBumper().onTrue(robot.drivetrain.seedFieldCentric());
+
+    // Hold A or B to drive straight to a fixed spot on the field. Let go to stop.
+    robot.driver.a().whileTrue(robot.drivetrain.driveToPoint(Pose2d.ZERO));
+    robot.driver.b().whileTrue(robot.drivetrain.driveToPoint(new Pose2d(3, 2, Rotation2d.PI)));
   }
 }
