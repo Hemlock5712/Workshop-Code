@@ -167,8 +167,8 @@ public class DriveMechanism implements Mechanism {
   }
 
   /**
-   * Feeds a camera position estimate into the drivetrain so it can correct odometry. The Limelight
-   * subsystem (added in a later lesson) calls this.
+   * Feeds a camera position estimate into the drivetrain so it can correct odometry. The {@code
+   * Vision} class calls this, once per sighting.
    *
    * @param visionRobotPose the robot position the camera measured (blue-alliance origin)
    * @param timestampSeconds when the picture was taken, on the {@code

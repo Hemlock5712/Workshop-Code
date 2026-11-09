@@ -12,6 +12,7 @@ import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.DriveMechanism;
+import frc.robot.subsystems.Vision;
 import frc.robot.utils.SimStartup;
 import org.wpilib.command3.Scheduler;
 import org.wpilib.command3.button.CommandNiDsXboxController;
@@ -29,6 +30,8 @@ import org.wpilib.framework.OpModeRobot;
  */
 public class Robot extends OpModeRobot {
   public final DriveMechanism drivetrain = new DriveMechanism();
+  // Every camera on the robot, by its NetworkTables name. A second camera is a second string.
+  public final Vision vision = new Vision(drivetrain, "limelight");
   public final CommandNiDsXboxController driver = new CommandNiDsXboxController(0);
 
   private final double maxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // top speed
