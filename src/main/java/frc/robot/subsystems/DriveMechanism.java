@@ -11,6 +11,7 @@ import com.ctre.phoenix6.swerve.SwerveDrivetrain.SwerveDriveState;
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 import frc.robot.generated.TunerConstants;
+import java.util.Optional;
 import java.util.function.Supplier;
 import org.wpilib.command3.Command;
 import org.wpilib.command3.Mechanism;
@@ -21,6 +22,7 @@ import org.wpilib.math.kinematics.ChassisVelocities;
 import org.wpilib.math.linalg.Matrix;
 import org.wpilib.math.numbers.N1;
 import org.wpilib.math.numbers.N3;
+import org.wpilib.system.DataLogManager;
 import org.wpilib.telemetry.Telemetry;
 import org.wpilib.telemetry.TelemetryTable;
 
@@ -146,6 +148,51 @@ public class DriveMechanism implements Mechanism {
         .build(new Path(new Path.Waypoint(goal)))
         // A field coordinate is the same spot on either alliance, so never turn it around.
         .withShouldFlip(() -> false);
+  }
+
+  /**
+   * Returns a command that drives to a spot measured from one AprilTag, not from the field. The
+   * same one-waypoint path as {@link #driveToPoint}, but BLine reads the robot's pose from {@code
+   * vision} in the tag's frame, so a wrong field pose cannot move the spot.
+   *
+   * <p>If no camera has seen the tag yet, the command ends at once and the robot does not move.
+   *
+   * @param vision where the robot's pose relative to the tag comes from
+   * @param tagId the AprilTag to measure from
+   * @param spotInTag where to stop: X meters out from the tag's face, Y meters to its left, and the
+   *     heading relative to the tag. Read it off {@code Vision/RobotInTag<id>} with the robot
+   *     parked where you want it.
+   */
+  public Command alignToTag(Vision vision, int tagId, Pose2d spotInTag) {
+    FollowPath align =
+        new FollowPath.Builder(
+                DriveType.SWERVE,
+                this,
+                () -> vision.robotInTag(tagId).orElseThrow(), // where the robot is, from the tag
+                pose -> {}, // never reset odometry from a tag-relative pose
+                () -> getRobotVelocity(),
+                velocities -> driveRobotRelative(velocities),
+                new PIDController(2.0, 0.0, 0.0),
+                new PIDController(3.0, 0.0, 0.0),
+                new PIDController(0.2, 0.0, 0.0))
+            // The tag's frame has no alliance side, so there is nothing to turn around.
+            .withShouldFlip(() -> false)
+            .build(new Path(new Path.Waypoint(spotInTag)));
+
+    return Command.noRequirements(
+            coroutine -> {
+              if (vision.robotInTag(tagId).isEmpty()) {
+                DataLogManager.log("AlignToTag: tag " + tagId + " not seen yet");
+                return;
+              }
+              coroutine.await(align);
+            })
+        .named("AlignToTag");
+  }
+
+  /** The robot's pose at an earlier moment, from the drivetrain's history. */
+  public Optional<Pose2d> samplePoseAt(double timestampSeconds) {
+    return drivetrain.samplePoseAt(timestampSeconds);
   }
 
   /** Drives at the given speeds, in the robot's own directions. X is the robot's forward. */
