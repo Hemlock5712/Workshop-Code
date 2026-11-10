@@ -22,5 +22,12 @@ public class TeleopOpMode extends PeriodicOpMode {
   public TeleopOpMode(Robot robot) {
     // Left bumper: make the robot's current facing the new "forward".
     robot.driver.leftBumper().onTrue(robot.drivetrain.seedFieldCentric());
+
+    // Right trigger: spin up for the distance to the goal while held, stop when released.
+    robot
+        .driver
+        .rightTrigger()
+        .whileTrue(robot.flywheel.distanceShoot())
+        .whileFalse(robot.flywheel.stop());
   }
 }
