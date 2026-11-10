@@ -4,6 +4,7 @@
 
 package first.robot.mechanisms;
 
+import static org.wpilib.units.Units.Degrees;
 import static org.wpilib.units.Units.RotationsPerSecond;
 import static org.wpilib.units.Units.RotationsPerSecondPerSecond;
 import static org.wpilib.units.Units.Volts;
@@ -23,27 +24,31 @@ import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import org.wpilib.command3.Command;
 import org.wpilib.command3.Mechanism;
+import org.wpilib.telemetry.TelemetryLoggable;
+import org.wpilib.telemetry.TelemetryTable;
+import org.wpilib.units.measure.Angle;
 
 /**
  * The arm. One TalonFX motor plus a CANcoder that measures the arm's angle.
  *
- * <p>New in this lesson: the arm goes closed loop. Instead of pushing a voltage and hoping, each
- * command names a target angle, and the motor drives to it along a <b>Motion Magic</b> profile
- * ({@link MotionMagicVoltage}) that speeds up, cruises and slows down so the arm does not jerk.
+ * <p>The motor uses Motion Magic position control ({@link MotionMagicVoltage}), added one lesson
+ * back. It follows a smooth speed ramp to the target angle instead of jerking at it.
  *
- * <p>The gains are not typed here. They are pasted out of Phoenix Tuner X, where you measured them
- * in Workshop 1.
- *
- * <p>The position request stays applied after a command ends, so the arm holds its last target
- * until something else commands it. {@link #stop()} is still here for stopping it mid-move.
+ * <p>New in this lesson (mech-4-ReadingState): the <b>read side</b>. {@link #getPosition} tells you
+ * where the arm is, {@link #getTargetPosition} tells you where it is headed, and {@link
+ * #isAtTarget} tells you whether it has arrived. A routine waits on that last one before its next
+ * step. {@link #logTo} writes all three to the log, with the motor voltage, every loop.
  */
-public class Arm implements Mechanism {
+public class Arm implements Mechanism, TelemetryLoggable {
   private final CANBus canivore = new CANBus("canivore");
   private final TalonFX motor = new TalonFX(31, canivore);
   private final CANcoder encoder = new CANcoder(32, canivore);
 
   // Moves the arm to a target angle along a smooth Motion Magic ramp.
   private final MotionMagicVoltage positionOut = new MotionMagicVoltage(0);
+
+  // How close counts as "at target".
+  private final Angle tolerance = Degrees.of(1.0);
 
   public Arm() {
     // Pasted from Tuner X. Every gain is 0.0 until you paste yours over it.
@@ -98,6 +103,30 @@ public class Arm implements Mechanism {
   /** Stop the arm motor and keep it stopped. Never finishes. */
   public Command stop() {
     return runRepeatedly(() -> stopMotor()).named("stop");
+  }
+
+  /** True when the arm has reached its target angle. */
+  public boolean isAtTarget() {
+    return getPosition().isNear(getTargetPosition(), tolerance);
+  }
+
+  /** Current measured arm angle. */
+  public Angle getPosition() {
+    return encoder.getPosition().getValue();
+  }
+
+  /** Angle the arm is currently driving toward. */
+  public Angle getTargetPosition() {
+    return positionOut.getPositionMeasure();
+  }
+
+  /** Write the arm's signals to the log. Robot calls this every loop. */
+  @Override
+  public void logTo(TelemetryTable table) {
+    table.log("Position", getPosition());
+    table.log("TargetPosition", getTargetPosition());
+    table.log("AtTarget", isAtTarget());
+    table.log("AppliedVoltage", motor.getMotorVoltage().getValue());
   }
 
   private void setPosition(double rotations) {
