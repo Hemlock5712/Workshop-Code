@@ -18,10 +18,6 @@ import org.wpilib.opmode.Teleop;
 @Teleop(name = "Teleop")
 public class MyTeleop extends PeriodicOpMode {
   public MyTeleop(Robot robot) {
-    // Hold the left trigger to drive the arm to its vertical position. Releasing cancels the
-    // command; the position request stays applied, so the arm finishes the move and holds there.
-    robot.driver.leftTrigger().whileTrue(robot.arm.vertical());
-
     // Right trigger: spin fast while held, drop back to the slow hold speed when released.
     robot
         .driver

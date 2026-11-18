@@ -4,10 +4,9 @@
 
 package first.robot;
 
-import first.robot.mechanisms.Arm;
 import first.robot.mechanisms.Flywheel;
 import org.wpilib.command3.Scheduler;
-import org.wpilib.command3.button.CommandNiDsXboxController;
+import org.wpilib.command3.button.CommandXboxController;
 import org.wpilib.driverstation.DriverStation;
 import org.wpilib.framework.OpModeRobot;
 import org.wpilib.system.DataLogManager;
@@ -21,11 +20,11 @@ import org.wpilib.telemetry.Telemetry;
  */
 public class Robot extends OpModeRobot {
   // The robot's mechanisms. Public so OpModes can use them.
-  public final Arm arm = new Arm();
+  // P1 bench: only the flywheel is plugged in, so the Arm is left out.
   public final Flywheel flywheel = new Flywheel();
 
   // The driver's controller on port 0. OpModes bind its buttons through robot.driver.
-  public final CommandNiDsXboxController driver = new CommandNiDsXboxController(0);
+  public final CommandXboxController driver = new CommandXboxController(0);
 
   public Robot() {
     // Record every logged value, plus the driver station, to a .wpilog file.
@@ -36,7 +35,6 @@ public class Robot extends OpModeRobot {
   @Override
   public void robotPeriodic() {
     Scheduler.getDefault().run();
-    Telemetry.log("Arm", arm);
     Telemetry.log("Flywheel", flywheel);
   }
 }

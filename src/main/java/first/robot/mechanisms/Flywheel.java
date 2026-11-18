@@ -37,7 +37,8 @@ import org.wpilib.units.measure.AngularVelocity;
  */
 public class Flywheel implements Mechanism, TelemetryLoggable {
   private final CANBus canivore = new CANBus("canivore");
-  private final TalonFX motor = new TalonFX(21, canivore);
+  // P1 bench: the flywheel TalonFX on this bench is CAN ID 31 (workshop robot uses 21).
+  private final TalonFX motor = new TalonFX(31, canivore);
 
   // Asks the motor to ramp to a target speed instead of jumping to it.
   private final MotionMagicVelocityVoltage velocityOut = new MotionMagicVelocityVoltage(0);
@@ -54,11 +55,16 @@ public class Flywheel implements Mechanism, TelemetryLoggable {
                     .withNeutralMode(NeutralModeValue.Coast) // easy to spin by hand
                     // positive shoots: clockwise from the motor side
                     .withInverted(InvertedValue.Clockwise_Positive))
-            .withSlot0(new Slot0Configs().withKS(0.0).withKV(0.0).withKP(0.0))
+            // P1 bench starter gains: kV 0.12 V per rps is about right for a Kraken/Falcon
+            // with no load; a little kP corrects the rest. Replace with Tuner X values.
+            .withSlot0(new Slot0Configs().withKS(0.0).withKV(0.12).withKP(0.1))
             .withMotionMagic(
                 new MotionMagicConfigs()
-                    .withMotionMagicCruiseVelocity(RotationsPerSecond.of(0.0))
-                    .withMotionMagicAcceleration(RotationsPerSecondPerSecond.of(0.0))
+                    // Must be nonzero or Motion Magic holds the flywheel still. 100 rps is about
+                    // motor free speed, above the 75 rps runFast target.
+                    .withMotionMagicCruiseVelocity(RotationsPerSecond.of(100.0))
+                    // Ramp at 50 rps per second: about 1.5 s from stopped to runFast.
+                    .withMotionMagicAcceleration(RotationsPerSecondPerSecond.of(50.0))
                     .withMotionMagicExpo_kV(
                         Volts.per(RotationsPerSecond).ofNative(0.119999997317791))
                     .withMotionMagicExpo_kA(
