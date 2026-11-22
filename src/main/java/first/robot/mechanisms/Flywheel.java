@@ -9,6 +9,7 @@ import static org.wpilib.units.Units.RotationsPerSecondPerSecond;
 import static org.wpilib.units.Units.Volts;
 
 import com.ctre.phoenix6.CANBus;
+import com.ctre.phoenix6.Utils;
 import com.ctre.phoenix6.configs.MotionMagicConfigs;
 import com.ctre.phoenix6.configs.MotorOutputConfigs;
 import com.ctre.phoenix6.configs.Slot0Configs;
@@ -17,6 +18,7 @@ import com.ctre.phoenix6.controls.MotionMagicVelocityVoltage;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
+import first.robot.utils.MechanismViews;
 import org.wpilib.command3.Command;
 import org.wpilib.command3.Mechanism;
 import org.wpilib.telemetry.TelemetryLoggable;
@@ -65,6 +67,14 @@ public class Flywheel implements Mechanism, TelemetryLoggable {
                         Volts.per(RotationsPerSecondPerSecond).ofNative(0.10000000149011612)));
 
     motor.getConfigurator().apply(talonFXCfg);
+
+    // A speed gauge, drawn from its own getters. A full bar is 100 rotations per second.
+    MechanismViews.flywheel("FlywheelView", () -> getVelocity(), () -> getTargetVelocity(), 100);
+
+    // Simulate Robot Code only: there is no real flywheel, so physics plays its part.
+    if (Utils.isSimulation()) {
+      new FlywheelSim(motor);
+    }
   }
 
   // Same setup as Arm. runRepeatedly runs the action every loop while the command
