@@ -13,7 +13,7 @@ import com.ctre.phoenix6.swerve.SwerveRequest;
 import frc.robot.Robot;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.DriveMechanism;
-import org.wpilib.command3.button.CommandNiDsXboxController;
+import org.wpilib.command3.button.CommandXboxController;
 import org.wpilib.opmode.PeriodicOpMode;
 import org.wpilib.opmode.Teleop;
 
@@ -34,17 +34,16 @@ public class TeleopOpMode extends PeriodicOpMode {
 
   private final SwerveRequest.FieldCentric drive =
       new SwerveRequest.FieldCentric()
-          .withDeadband(maxSpeed * 0.1)
-          .withRotationalDeadband(maxAngularRate * 0.1) // ignore the sticks' bottom 10%
           .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // plain voltage, no wheel PID
 
-  private final CommandNiDsXboxController driver = new CommandNiDsXboxController(0);
+  private final CommandXboxController driver = new CommandXboxController(0);
 
   public TeleopOpMode(Robot robot) {
     final DriveMechanism drivetrain = robot.drivetrain;
 
     // In WPILib, X points forward and Y points left. The sticks read the other way around, so
-    // each axis below gets a minus sign.
+    // each axis below gets a minus sign. The controller already ignores the bottom 10% of each
+    // stick, so a stick at rest reads 0.
     drivetrain.setDefaultCommand(
         drivetrain.applyRequest(
             () ->
