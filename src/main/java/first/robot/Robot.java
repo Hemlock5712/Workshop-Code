@@ -12,6 +12,7 @@ import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 import first.robot.generated.TunerConstants;
 import first.robot.mechanisms.CommandSwerveDrivetrain;
+import first.robot.mechanisms.Vision;
 import org.wpilib.command3.Scheduler;
 import org.wpilib.command3.button.CommandXboxController;
 import org.wpilib.command3.button.RobotModeTriggers;
@@ -30,6 +31,8 @@ public class Robot extends OpModeRobot {
   // TunerConstants comes from the Tuner X swerve generator. The checked-in file is an EXAMPLE
   // with fake device IDs and gains - regenerate it from Tuner X for your own robot.
   public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
+  // Every camera on the robot, by its NetworkTables name. A second camera is a second string.
+  public final Vision vision = new Vision(drivetrain, "limelight");
   public final CommandXboxController driver = new CommandXboxController(0);
 
   private final double maxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // top speed
