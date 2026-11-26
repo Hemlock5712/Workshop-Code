@@ -5,11 +5,13 @@
 package first.robot.mechanisms;
 
 import static org.wpilib.units.Units.Degrees;
+import static org.wpilib.units.Units.Inches;
 import static org.wpilib.units.Units.RotationsPerSecond;
 import static org.wpilib.units.Units.RotationsPerSecondPerSecond;
 import static org.wpilib.units.Units.Volts;
 
 import com.ctre.phoenix6.CANBus;
+import com.ctre.phoenix6.Utils;
 import com.ctre.phoenix6.configs.FeedbackConfigs;
 import com.ctre.phoenix6.configs.MotionMagicConfigs;
 import com.ctre.phoenix6.configs.MotorOutputConfigs;
@@ -22,11 +24,13 @@ import com.ctre.phoenix6.signals.FeedbackSensorSourceValue;
 import com.ctre.phoenix6.signals.GravityTypeValue;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
+import first.robot.utils.MechanismViews;
 import org.wpilib.command3.Command;
 import org.wpilib.command3.Mechanism;
 import org.wpilib.telemetry.TelemetryLoggable;
 import org.wpilib.telemetry.TelemetryTable;
 import org.wpilib.units.measure.Angle;
+import org.wpilib.units.measure.Distance;
 
 /**
  * The arm. One TalonFX motor plus a CANcoder that measures the arm's angle.
@@ -43,6 +47,9 @@ public class Arm implements Mechanism, TelemetryLoggable {
   private final CANBus canivore = new CANBus("canivore");
   private final TalonFX motor = new TalonFX(31, canivore);
   private final CANcoder encoder = new CANcoder(32, canivore);
+
+  // Pivot to tip: a 9 inch tube. The picture and the simulation both use it.
+  static final Distance LENGTH = Inches.of(9);
 
   // Moves the arm to a target angle along a smooth Motion Magic ramp.
   private final MotionMagicVoltage positionOut = new MotionMagicVoltage(0);
@@ -79,6 +86,14 @@ public class Arm implements Mechanism, TelemetryLoggable {
                     .withFeedbackSensorSource(FeedbackSensorSourceValue.RemoteCANcoder));
 
     motor.getConfigurator().apply(talonFXCfg);
+
+    // A picture of the arm, drawn from its own getters. Runs everywhere.
+    MechanismViews.arm("ArmView", () -> getPosition(), () -> getTargetPosition(), LENGTH);
+
+    // Simulate Robot Code only: there is no real arm, so physics plays its part.
+    if (Utils.isSimulation()) {
+      new ArmSim(motor, encoder);
+    }
   }
 
   // Each command uses runRepeatedly, which runs its action every loop while the
