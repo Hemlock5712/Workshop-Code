@@ -4,7 +4,9 @@
   "display_name": "autos",
   "editor_config": {
     "gui": {
-      "event_trigger_keys": [],
+      "event_trigger_keys": [
+        "atMidpoint"
+      ],
       "robot": {
         "length_meters": 0.8,
         "width_meters": 0.8
@@ -24,7 +26,13 @@
       "default_auto_velocity_merge_tolerance_meters_per_sec": 0.3
     }
   },
-  "paths": [],
+  "paths": [
+    {
+      "path_id": "leave-start.json",
+      "display_name": "leave-start",
+      "file_name": "leave-start.json"
+    }
+  ],
   "path_groups": [],
   "linked_targets": []
 }
