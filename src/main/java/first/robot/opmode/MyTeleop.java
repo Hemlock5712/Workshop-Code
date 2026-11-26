@@ -8,7 +8,27 @@ import first.robot.Robot;
 import org.wpilib.opmode.OpMode;
 import org.wpilib.opmode.Teleop;
 
-@Teleop
+/**
+ * The driver's controls. The framework builds this class when "Teleop" is picked on the driver
+ * station. The button bindings made in the constructor belong to this OpMode, and the framework
+ * removes them on a mode switch. No cleanup code needed.
+ *
+ * <p>The buttons here run the arm and flywheel commands.
+ */
+@Teleop(name = "Teleop")
 public class MyTeleop implements OpMode {
-  public MyTeleop(Robot robot) {}
+  public MyTeleop(Robot robot) {
+    // Left trigger: push the arm up while held, stop when released.
+    robot.driver.leftTrigger().whileTrue(robot.arm.runFast()).whileFalse(robot.arm.stop());
+
+    // Right trigger: spin fast while held, drop back to the slow voltage when released.
+    robot
+        .driver
+        .rightTrigger()
+        .whileTrue(robot.flywheel.runFast())
+        .whileFalse(robot.flywheel.runSlow());
+
+    // A: spin fast while held, stop when released.
+    robot.driver.a().whileTrue(robot.flywheel.runFast()).whileFalse(robot.flywheel.stop());
+  }
 }
