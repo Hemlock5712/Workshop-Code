@@ -2,7 +2,7 @@
 // Open Source Software; you can modify and/or share it under the terms of
 // the WPILib BSD license file in the root directory of this project.
 
-package frc.robot;
+package first.robot;
 
 import static org.wpilib.units.Units.MetersPerSecond;
 import static org.wpilib.units.Units.RadiansPerSecond;
@@ -10,9 +10,8 @@ import static org.wpilib.units.Units.RotationsPerSecond;
 
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
-import frc.robot.generated.TunerConstants;
-import frc.robot.subsystems.DriveMechanism;
-import frc.robot.utils.SimStartup;
+import first.robot.generated.TunerConstants;
+import first.robot.mechanisms.CommandSwerveDrivetrain;
 import org.wpilib.command3.Scheduler;
 import org.wpilib.command3.button.CommandXboxController;
 import org.wpilib.command3.button.RobotModeTriggers;
@@ -23,12 +22,14 @@ import org.wpilib.framework.OpModeRobot;
  * {@link Robot} in its constructor and reaches the mechanisms through it.
  *
  * <p>The framework finds the {@code @Teleop} and {@code @Autonomous} classes in {@code
- * frc.robot.opmodes} on its own and handles every mode switch, so this class has no per-mode
+ * first.robot.opmode} on its own and handles every mode switch, so this class has no per-mode
  * methods. It owns the drivetrain and the driver's controller, sets the joystick drive as the
  * drivetrain's default command in every mode, and runs the command scheduler every loop.
  */
 public class Robot extends OpModeRobot {
-  public final DriveMechanism drivetrain = new DriveMechanism();
+  // TunerConstants comes from the Tuner X swerve generator. The checked-in file is an EXAMPLE
+  // with fake device IDs and gains - regenerate it from Tuner X for your own robot.
+  public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
   public final CommandXboxController driver = new CommandXboxController(0);
 
   private final double maxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // top speed
@@ -58,13 +59,6 @@ public class Robot extends OpModeRobot {
     // away on a mode switch; this one never does.
     final var idle = new SwerveRequest.Idle();
     RobotModeTriggers.disabled().whileTrue(drivetrain.applyRequest(() -> idle));
-  }
-
-  @Override
-  public void simulationInit() {
-    // Lets simulation start enabled when a launcher asks for it. Does nothing in a normal run.
-    // See SimStartup for details.
-    SimStartup.arm();
   }
 
   @Override

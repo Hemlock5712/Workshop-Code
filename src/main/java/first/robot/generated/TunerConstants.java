@@ -1,4 +1,4 @@
-package frc.robot.generated;
+package first.robot.generated;
 
 import static org.wpilib.units.Units.*;
 
@@ -8,7 +8,7 @@ import com.ctre.phoenix6.hardware.*;
 import com.ctre.phoenix6.signals.*;
 import com.ctre.phoenix6.swerve.*;
 import com.ctre.phoenix6.swerve.SwerveModuleConstants.*;
-import frc.robot.subsystems.CommandSwerveDrivetrain;
+import first.robot.mechanisms.CommandSwerveDrivetrain;
 import org.wpilib.math.linalg.Matrix;
 import org.wpilib.math.numbers.N1;
 import org.wpilib.math.numbers.N3;

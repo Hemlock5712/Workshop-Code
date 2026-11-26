@@ -5,7 +5,6 @@
 //   - the command-based authoring shape (CommandOpMode/CommandRobot) is still an open proposal
 //   - RobotBase.startRobot takes a Supplier, not a Class (alpha-7)
 //   - Mechanism is an interface, not a base class (alpha-7)
-// See ONBOARDING.md for the OpMode wiring model.
 plugins {
     id "java"
     id "application"
@@ -18,7 +17,7 @@ java {
     targetCompatibility = JavaVersion.VERSION_25
 }
 
-def ROBOT_MAIN_CLASS = "frc.robot.Main"
+def ROBOT_MAIN_CLASS = "first.Main"
 
 // Define my targets (SystemCore) and artifacts (deployable files)
 // This is added by GradleRIO's backing project DeployUtils.
@@ -95,38 +94,8 @@ test {
 }
 
 // Simulation configuration (e.g. environment variables).
-//
-// Headless / agent simulation -------------------------------------------------------------------
-//   ./gradlew simulateJava                         -> normal GUI sim (a human clicks Enable)
-//   ./gradlew simulateJavaAgent                    -> headless, robot auto-enables in AUTONOMOUS
-//   ./gradlew simulateJavaAgent -Pmode=teleop      -> headless, auto-enables in TELEOP
-//   ./gradlew simulateJavaAgent -Pmode=auto:"Drive To Pose"  -> pick a specific @Autonomous OpMode
-//   ./gradlew simulateJava -Pheadless -Pmode=auto  -> same headless behavior on the base task
-// SimStartup.java reads the frc.sim.startMode system property wired below; see the run-sim skill.
-def runningAgentSim = gradle.startParameter.taskNames.any { it.endsWith('simulateJavaAgent') }
-def headless = runningAgentSim || project.hasProperty('headless')
-
-// In headless mode, skip the Swing GUI and the socket DriverStation so nothing competes with the
-// programmatic enable that SimStartup performs via DriverStationSim.
-if (!headless) {
-    wpi.sim.addGui().defaultEnabled = true
-    wpi.sim.addDriverstation()
-}
-
-// The start mode SimStartup reads. Empty => stay disabled (the default for a plain simulateJava).
-// simulateJavaAgent defaults to "auto"; -Pmode=... overrides for either task.
-def simStartMode = (project.findProperty('mode') ?: (runningAgentSim ? 'auto' : '')).toString()
-tasks.withType(org.wpilib.gradlerio.simulation.JavaSimulationTask).configureEach {
-    systemProperty 'frc.sim.startMode', simStartMode
-}
-
-// Convenience alias: simulateJavaAgent == simulateJava with the headless wiring above (which keys
-// off this task name appearing in the requested tasks).
-tasks.register('simulateJavaAgent') {
-    group = 'GradleRIO'
-    description = 'Run headless simulation and auto-enable the robot (see the run-sim skill).'
-    dependsOn 'simulateJava'
-}
+wpi.sim.addGui().defaultEnabled = true
+wpi.sim.addDriverstation()
 
 application.mainClass = ROBOT_MAIN_CLASS
 
