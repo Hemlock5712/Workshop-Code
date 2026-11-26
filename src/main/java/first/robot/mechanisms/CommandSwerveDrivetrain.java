@@ -132,6 +132,23 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Me
     return pathBuilder.build(new Path(name));
   }
 
+  /**
+   * Returns a command that drives straight to a spot on the field, from wherever the robot is when
+   * it starts. It is a BLine path with one waypoint, built in code instead of drawn in the editor,
+   * so it gets the same controllers, speed limits and end tolerances as every drawn path.
+   *
+   * <p>Like a drawn path, the spot is given for the blue alliance. On red, BLine turns it around
+   * the field center, so the same button drives to the matching spot on your own side.
+   *
+   * <p>The command finishes when the robot is within the end tolerances in {@code config.json}, and
+   * sends a zero when it finishes or is canceled.
+   *
+   * @param goal where to drive on blue, in field coordinates from the blue alliance corner
+   */
+  public FollowPath driveToPoint(Pose2d goal) {
+    return pathBuilder.build(new Path(new Path.Waypoint(goal)));
+  }
+
   /** Drives at the given speeds, in the robot's own directions. X is the robot's forward. */
   public void driveRobotRelative(ChassisVelocities velocities) {
     setControl(pathRequest.withVelocity(velocities));
