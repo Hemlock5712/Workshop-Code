@@ -28,5 +28,12 @@ public class TeleopOpMode extends PeriodicOpMode {
     // Hold A or B to drive straight to a fixed spot on the field. Let go to stop.
     robot.driver.a().whileTrue(robot.drivetrain.driveToPoint(Pose2d.ZERO));
     robot.driver.b().whileTrue(robot.drivetrain.driveToPoint(new Pose2d(3, 2, Rotation2d.PI)));
+
+    // Right trigger: spin up for the distance to the goal while held, stop when released.
+    robot
+        .driver
+        .rightTrigger()
+        .whileTrue(robot.flywheel.distanceShoot())
+        .whileFalse(robot.flywheel.stop());
   }
 }
