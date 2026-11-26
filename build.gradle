@@ -117,14 +117,11 @@ spotless {
     lineEndings = 'PRESERVE'
 
     java {
-        // Our own code only. Vendor drops (LimelightHelpers) and Tuner X output
-        // (generated/) stay as they ship, so re-downloading or regenerating them
-        // never shows up as a formatting diff.
+        // Our own code only. Tuner X output (generated/) stays as it ships, so
+        // regenerating it never shows up as a formatting diff.
         target fileTree('.') {
             include 'src/**/*.java'
-            exclude '**/build/**', '**/bin/**',
-                    '**/LimelightHelpers.java',
-                    '**/generated/**'
+            exclude '**/build/**', '**/bin/**', '**/generated/**'
         }
         toggleOffOn()
         // Pin a google-java-format new enough for the JDK 25 toolchain. Older versions
