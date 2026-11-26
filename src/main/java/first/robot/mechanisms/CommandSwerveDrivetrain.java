@@ -149,6 +149,36 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Me
     return pathBuilder.build(new Path(new Path.Waypoint(goal)));
   }
 
+  /**
+   * Returns a command that drives to a spot measured from one AprilTag, such as 1 m straight out
+   * from it. It is the same one-waypoint path as {@code driveToPoint}, on a builder whose pose
+   * comes from the camera instead of from odometry, so a wrong field pose cannot move the spot.
+   *
+   * <p>If the camera loses the tag on the way in, the robot finishes the drive on its wheels from
+   * the last place the tag was seen. If no camera has seen the tag at all, the robot reports that
+   * it is already on the spot, so the path finishes at once and nothing moves.
+   *
+   * @param vision where the tag sightings come from
+   * @param tagId the AprilTag to line up on
+   * @param spotInTag where to stop, measured from the tag: X straight out from its face, Y to its
+   *     left, and a heading of 180 degrees to face it
+   */
+  public FollowPath alignToTag(Vision vision, int tagId, Pose2d spotInTag) {
+    return new FollowPath.Builder(
+            DriveType.SWERVE,
+            this,
+            () -> vision.robotInTag(tagId).orElse(spotInTag), // where the robot is, from the tag
+            pose -> {}, // a pose measured from a tag is not a field pose, so never reset to it
+            () -> getRobotVelocity(),
+            velocities -> driveRobotRelative(velocities),
+            new PIDController(2.0, 0.0, 0.0),
+            new PIDController(3.0, 0.0, 0.0),
+            new PIDController(0.2, 0.0, 0.0))
+        // The tag's frame has no alliance side, so there is nothing to turn around.
+        .withShouldFlip(() -> false)
+        .build(new Path(new Path.Waypoint(spotInTag)));
+  }
+
   /** Drives at the given speeds, in the robot's own directions. X is the robot's forward. */
   public void driveRobotRelative(ChassisVelocities velocities) {
     setControl(pathRequest.withVelocity(velocities));

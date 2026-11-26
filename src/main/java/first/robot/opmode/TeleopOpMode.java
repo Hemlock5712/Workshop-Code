@@ -28,5 +28,12 @@ public class TeleopOpMode extends PeriodicOpMode {
     // Hold A or B to drive straight to a fixed spot on the field. Let go to stop.
     robot.driver.a().whileTrue(robot.drivetrain.driveToPoint(Pose2d.ZERO));
     robot.driver.b().whileTrue(robot.drivetrain.driveToPoint(new Pose2d(3, 2, Rotation2d.PI)));
+
+    // Hold X to line up 1 m straight out from tag 7, facing it. The camera has to see the tag.
+    robot
+        .driver
+        .x()
+        .whileTrue(
+            robot.drivetrain.alignToTag(robot.vision, 7, new Pose2d(1.0, 0.0, Rotation2d.PI)));
   }
 }
