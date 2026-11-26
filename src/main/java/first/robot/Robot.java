@@ -12,11 +12,13 @@ import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 import first.robot.generated.TunerConstants;
 import first.robot.mechanisms.CommandSwerveDrivetrain;
+import first.robot.mechanisms.Flywheel;
 import first.robot.mechanisms.Vision;
 import org.wpilib.command3.Scheduler;
 import org.wpilib.command3.button.CommandXboxController;
 import org.wpilib.command3.button.RobotModeTriggers;
 import org.wpilib.framework.OpModeRobot;
+import org.wpilib.telemetry.Telemetry;
 
 /**
  * The main robot class. The robot's mechanisms live here as public fields. Every OpMode gets a
@@ -33,6 +35,8 @@ public class Robot extends OpModeRobot {
   public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
   // Every camera on the robot, by its NetworkTables name. A second camera is a second string.
   public final Vision vision = new Vision(drivetrain, "limelight");
+  // Below the drivetrain: a field cannot read one declared after it.
+  public final Flywheel flywheel = new Flywheel(drivetrain);
   public final CommandXboxController driver = new CommandXboxController(0);
 
   private final double maxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // top speed
@@ -67,5 +71,8 @@ public class Robot extends OpModeRobot {
   @Override
   public void robotPeriodic() {
     Scheduler.getDefault().run();
+
+    // After the scheduler, so the log shows what the commands asked for this loop.
+    Telemetry.log("Flywheel", flywheel);
   }
 }
